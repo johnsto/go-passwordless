@@ -1,0 +1,43 @@
+{{ define "flashes" }}
+{{ if . }}
+<header>
+	{{ range $flash := . }}
+		{{ if eq $flash "forbidden" }}
+			<div class="bold center p2 white bg-red">
+			<i class="fa fa-lock"></i>
+			You must sign in to access the requested page.
+			</div>
+		{{ end }}
+		{{ if eq $flash "signed_in" }}
+			<div class="bold center p2 white bg-green">
+			<i class="fa fa-sign-in"></i> 
+			Signed in successfully!
+			</div>
+		{{ end }}
+		{{ if eq $flash "token_not_found" }}
+			<div class="bold center p2 bg-yellow">
+			<i class="fa fa-exclamation-triangle"></i> 
+			There was a problem signing in. Please sign in again.
+			</div>
+		{{ end }}
+		{{ if eq $flash "token_expired" }}
+			<div class="bold center p2 bg-yellow">
+			<i class="fa fa-exclamation-triangle"></i> 
+			The token you entered was too old. Pluase sign in again.
+			</div>
+		{{ end }}
+		{{ if eq $flash "already_signed_in" }}
+			<div class="bold center p2 bg-yellow">
+			You are already signed in! <a href="/account/signout">Sign out</a>?
+			</div>
+		{{ end }}
+		{{ if eq $flash "signed_out" }}
+			<div class="bold center p2 bg-yellow">
+			<i class="fa fa-sign-out"></i> 
+			You have been signed out succesfully.
+			</div>
+		{{ end }}
+	{{ end }}
+</header>
+{{ end }}
+{{ end }}

@@ -1,0 +1,38 @@
+{{ define "check" }}
+
+{{ template "header" . }}
+
+<section class="container">
+	{{ if eq .Strategy "sms" }}
+	<h2>SMS Sent!</h2>
+	<p class="{{ if .TokenError }}muted{{end}}">A PIN has been sent to <strong>{{ .Recipient }}</strong>. When you receive it, enter it below:</p>
+	<form method="POST">
+		<input type="hidden" name="strategy" value="sms">
+		<input type="hidden" name="recipient" value="{{ .Recipient }}">
+		<input type="hidden" name="uid" value="{{ .UserID }}">
+		<input type="hidden" name="next" value="{{ .Next }}">
+		<input type="text" name="token" required class="field" autofocus>
+		<button type="submit" class="btn btn-primary">Verify</button>
+	</form>
+	{{ if .TokenError }}<p class="red">{{ .TokenError }}</p>{{ end }}
+	{{ end }}
+	{{ if eq .Strategy "email" }}
+	<h2>Email Sent!</h2>
+	<p class="{{ if .TokenError }}muted{{end}}">An email has been sent to <strong>{{ .Recipient }}</strong> containing a unique PIN. Enter the PIN you receive into the box below:</p>
+	<form method="POST">
+		<input type="hidden" name="strategy" value="email">
+		<input type="hidden" name="recipient" value="{{ .Recipient }}">
+		<input type="hidden" name="uid" value="{{ .UserID }}">
+		<input type="hidden" name="next" value="{{ .Next }}">
+		<input type="text" name="token" required class="field" autofocus>
+		<button type="submit" class="btn btn-primary">Verify</button>
+	</form>
+	{{ if .TokenError }}<p class="red">{{ .TokenError }}</p>{{ end }}
+	{{ end }}
+	</div>
+</section>
+
+{{ template "footer" . }}
+
+{{ end }}
+

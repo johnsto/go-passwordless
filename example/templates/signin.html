@@ -1,0 +1,40 @@
+{{ define "signin" }}
+
+{{ template "header" . }}
+
+<section class="container px2">
+	<h2>How would you like to sign in?</h2>
+	<div class="clearfix">
+	{{ $next := .Next }}
+	{{ range $name, $t := .Strategies }}
+		<div class="sm-col sm-col-6 my1">
+		{{ if eq $name "sms" }}
+			<h3><i class="fa fa-phone"></i> Send me an SMS message</h3>
+			<form method="post" action="token">
+				<input type="hidden" name="strategy" value="sms">
+				<input type="hidden" name="next" value="{{ $next }}">
+				<label>Enter your telephone number below:</label>
+				<input name="recipient" type="tel" class="field block mb1" 
+					required placeholder="Phone number">
+				<button type="submit" class="btn btn-primary">Send</button>
+			</form>
+		{{ end }}
+		{{ if eq $name "email" }}
+			<h3><i class="fa fa-envelope"></i> Send me an email</h3>
+			<form method="post" action="token">
+				<input type="hidden" name="strategy" value="email">
+				<input type="hidden" name="next" value="{{ $next }}">
+				<label>Enter your email address below:</label>
+				<input name="recipient" type="email" class="field block mb1" 
+					required placeholder="Email address">
+				<button type="submit" class="btn btn-primary">Send</button>
+			</form>
+		{{ end }}
+		</div>
+	{{ end }}
+	</div>
+</section>
+
+{{ template "footer" . }}
+
+{{ end }}

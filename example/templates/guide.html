@@ -1,0 +1,56 @@
+{{ define "guide" }}
+
+{{ template "header" . }}
+
+<section class="container px2">
+	<h2>Getting Started</h2>
+
+	<h3>1. Install</h3>
+	<p>Install the library with <code>go get</code>:</p>
+	<pre><code class="bash">$ go get github.com/johnsto/go-passwordless</code></pre>
+	<p>The base library includes implementations for both memory and cookie-based token stores (<code>MemStore</code> and <code>CookieStore</code>, respectively), as well as an email transport (<code>SMTPTransport</code>) and token generators (<code>PINGenerator</code> and <code>CrockfordGenerator</code>).</p>
+	<p>If you have a particular storage or token requirements, simply implement the <code>Transport</code> and <code>TokenGenerator</code> interfaces.</p>
+
+	<h3>2. Import</h3>
+	<pre><code class="go">import "github.com/johnsto/go-passwordless"</code></pre>
+	<p>This will import the base functionality under the <code>passwordless</code> namespace.</p>
+
+	<h3>3. Configure</h3>
+	<p>Create an instance of Passwordless with your chosen token store. In this case, <code>MemStore</code> will hold tokens in memory until they expire.</p>
+	
+	<pre><code class="go">pw = passwordless.New(passwordless.NewMemStore())</pre></code>
+	<p>Then add a transport strategy that describes how to send a token to the user. In this case we're using the <code>LogTransport</code> which simply writes the token to the console for testing purposes.</p>
+	<pre><code class="go">pw.SetTransport("log", passwordless.LogTransport{
+	MessageFunc: func(token, uid string) string {
+		return fmt.Sprintf("Your PIN is %s", token)
+	},
+}, passwordless.NewCrockfordGenerator(8), 30*time.Minute)</code></pre>
+
+	<p>A production system might want to let a user authenticate via email and SMS, whereby the code might look like this instead:</p>
+	<pre><code class="go">pw.SetTransport("email", emailTransport, passwordless.NewCrockfordGenerator(32), 30*time.Minute)
+pw.SetTransport("sms", smsTransport, passwordless.NewPINGenerator(8), 30*time.Minute)</code></pre>
+	<p>Creating a custom token generator is as simple as implementing the <code>TokenGenerator</code> interface, which consists of just two functions.</p>
+
+	<h3>4. Route</h3>
+	<p>There are typically two routes requires to sign-in:</p>
+	<ul>
+		<li>Signin - lets the user choose and enter a means to contact them (e.g. an email address)</li>
+		<li>Verify - allows the user to enter the code they have received, and verifies it. Also used as a link included in emails to automatically verify a provided token.</li>
+	</ul>
+	<p>The example application names these two routes <code>/account/signin</code> and <code>/account/token</code>.</p>
+	<h4>Signin</h4>
+	<pre><code class="go"></code></pre>
+	<h4>Verify</h4>
+	<pre><code class="go">
+		if err := pw.RequestToken(ctx, strategy, uid, recipient); err != nil {
+		}
+	</code></pre>
+</section>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/highlight.js/8.9.1/styles/default.min.css"></link>
+<script src="https://cdn.jsdelivr.net/g/highlight.js@8.9.1(highlight.min.js+languages/go.min.js+languages/bash.min.js)"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+{{ template "footer" . }}
+
+{{ end }}

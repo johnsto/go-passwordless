@@ -1,0 +1,13 @@
+{{ define "index" }}
+
+{{ template "header" . }}
+
+<section class="container px2">
+	<h2>Token-based authentication for Go</h2>
+	<p>Passwordless allows users to sign-in to your website without a password by sending them a secure one-time password to their chosen email or device instead. Shamelessly inspired by the <a href="https://passwordless.net/">original Passwordless for Node</a>.</p>
+	<p class="center"><a href="/account/signin" class="btn btn-primary">Try it!</a></p>
+</section>
+
+{{ template "footer" . }}
+
+{{ end }}

@@ -1,0 +1,52 @@
+{{ define "header" }}
+<!doctype html>
+<html lang="en">
+	<head>
+		<link href="http://d2v52k3cl9vedd.cloudfront.net/basscss/7.0.4/basscss.min.css" rel="stylesheet">
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css">
+		<meta charset="utf-8">
+	</head>
+
+	<body>
+		<nav class="clearfix border-bottom bg-blue white">
+			<div class="container">
+				<div class="left">
+					<a class="btn py2" href="/">
+						<i class="fa fa-home"></i> Home
+					</a>
+					<a class="btn py2" href="/about">
+						<i class="fa fa-question-circle"></i> About
+					</a>
+					<a class="btn py2" href="/guide">
+						<i class="fa fa-book"></i> Guide
+					</a>
+					{{ if .Context.SignedIn }}
+					<a class="btn py2" href="/restricted">
+						<i class="fa fa-unlock-alt"></i> Secrets!
+					</a>
+					{{ else }}
+					<a class="btn py2 muted" href="/restricted">
+						<i class="fa fa-lock"></i> Secrets!
+					</a>
+					{{ end }}
+				</div>
+				<div class="sm-hide"></div>
+				<div class="right">
+					{{ if .Context.UserName }}
+					<span class="btn py2 muted">{{ .Context.UserName }}</span>
+					<a class="btn py2" href="/account/signout">
+						<i class="fa fa-sign-out"></i> Sign out
+					</a>
+					{{ else }}
+					<a class="btn py2" href="/account/signin">
+						<i class="fa fa-sign-in"></i> Sign in
+					</a>
+					{{ end }}
+				</div>
+			</div>
+		</nav>
+		{{ template "flashes" .Context.Flashes }}
+		<header class="container px2">
+			<h1>Passwordless Demo</h1>
+		</header>
+{{ end }}

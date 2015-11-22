@@ -1,0 +1,13 @@
+{{ define "error" }}
+
+{{ template "header" . }}
+
+<section class="container">
+	<h2>Oops...</h2>
+	<h3>{{ .Error.Name }}</h3>
+	<p>{{ .Error.Description }}</p>
+</section>
+
+{{ template "footer" . }}
+
+{{ end }}
