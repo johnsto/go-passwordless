@@ -34,17 +34,26 @@ pw.SetTransport("sms", smsTransport, passwordless.NewPINGenerator(8), 30*time.Mi
 	<h3>4. Route</h3>
 	<p>There are typically two routes requires to sign-in:</p>
 	<ul>
-		<li>Signin - lets the user choose and enter a means to contact them (e.g. an email address)</li>
-		<li>Verify - allows the user to enter the code they have received, and verifies it. Also used as a link included in emails to automatically verify a provided token.</li>
+		<li>/signin - lets the user choose and enter a means to contact them (e.g. an email address)</li>
+		<li>/token - allows the user to enter the code they have received, and verifies it. Also used as a link included in emails to automatically verify a provided token.</li>
 	</ul>
-	<p>The example application names these two routes <code>/account/signin</code> and <code>/account/token</code>.</p>
+	<p>The example application names these two routes <code>/account/signin</code> and <code>/account/token</code>, but the library does not mandate any particular naming scheme.</p>
+	<p>This library does <em>not</em> provide implementations for these routes (besides the examples), as every site has slightly different requirements.</p>
 	<h4>Signin</h4>
-	<pre><code class="go"></code></pre>
-	<h4>Verify</h4>
-	<pre><code class="go">
-		if err := pw.RequestToken(ctx, strategy, uid, recipient); err != nil {
-		}
-	</code></pre>
+	<p>This simply shows a form whereby the user can enter their email address. If you have multiple auth methods - for example email and SMS - it presents two forms, and the user can choose the one they prefer. The form POST's itself to the token endpoint, below.</p>
+	<p>In fact, the only call this route needs to make is to <code>passwordless.ListTransports</code>, which will return a list of registered strategies to display to the user.</p>
+	<h4>Token</h4>
+	<p>This route can both generate and verify tokens, depending on the request.</p>
+	<p>In the 'generate' case (i.e. when a token is not provided in the request), the code must call <code>passwordless.RequestToken</code> with the appropriate arguments from the 'signin' route - namely the delivery strategy (e.g. <code>"email"</code>, a recipient value entered by the user from the 'signin' page (e.g. an email address), and a user ID string for the recipient (e.g. a UUID or database ID, depending on your backend.)</p>
+	<pre><code class="go">strategy := r.FormValue("strategy")
+recipient := r.FormValue("recipient")
+user := Users.Find(recipient)
+err := pw.RequestToken(ctx, strategy, user.ID, recipient)</code></pre>
+	<p>The page should inform the user that a token has been generated and sent to their specified address. It should also then show a form wherby the user can enter the token they've received, for the 'verify' case.</p>
+	<pre><code class="go">token := r.FormValue("token")
+uid := r.FormValue("uid")
+valid, err := pw.VerifyToken(ctx, uid, token)</code></pre>
+	<p>If <code>valid</code> is <code>true</code>, the user can be considered authenticated and the login process is complete. At this point, you may want to set a secure session cookie to keep the user logged in.</p>
 </section>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/highlight.js/8.9.1/styles/default.min.css"></link>
