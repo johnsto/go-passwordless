@@ -2,13 +2,14 @@ package passwordless
 
 import (
 	"crypto/rand"
-	"fmt"
-	"math"
-	"math/big"
-	"strconv"
+	"errors"
 	"strings"
 
 	"golang.org/x/net/context"
+)
+
+var (
+	crockfordBytes = []byte("0123456789abcdefghjkmnpqrstvwxyz")
 )
 
 // TokenGenerator defines an interface for generating and sanitising
@@ -44,18 +45,11 @@ func NewByteGenerator(b []byte, l int) *ByteGenerator {
 // set, of the given length. An error may be returned if there is insufficient
 // entropy to generate a result.
 func (g ByteGenerator) Generate(ctx context.Context) (string, error) {
-	c := len(g.Bytes)
-	b := make([]byte, g.Length)
-	if _, err := rand.Read(b); err != nil {
+	if b, err := randBytes(g.Bytes, g.Length); err != nil {
 		return "", err
+	} else {
+		return string(b), nil
 	}
-	j := 0
-	for i := 0; i < g.Length; i++ {
-		bb := int(b[i])
-		b[i] = g.Bytes[(j+bb)%c]
-		j += (c + (c-bb)%c) % c
-	}
-	return string(b), nil
 }
 
 func (g ByteGenerator) Sanitize(ctx context.Context, s string) (string, error) {
@@ -67,14 +61,20 @@ func (g ByteGenerator) Sanitize(ctx context.Context, s string) (string, error) {
 // Sanitize method of this generator will deal with transcribing incorrect
 // characters back to the correct value.
 type CrockfordGenerator struct {
-	*ByteGenerator
+	Length int
 }
 
 // NewCrockfordGenerator returns a new Crockford token generator that creates
 // tokens of the specified length.
 func NewCrockfordGenerator(l int) *CrockfordGenerator {
-	return &CrockfordGenerator{
-		ByteGenerator: NewByteGenerator([]byte("0123456789abcdefghjkmnpqrstvwxyz"), l),
+	return &CrockfordGenerator{l}
+}
+
+func (g CrockfordGenerator) Generate(ctx context.Context) (string, error) {
+	if b, err := randBytes(crockfordBytes, g.Length); err != nil {
+		return "", err
+	} else {
+		return string(b), nil
 	}
 }
 
@@ -101,17 +101,35 @@ type PINGenerator struct {
 // enough random entropy, the returned string will be empty and an error
 // value present.
 func (g PINGenerator) Generate(ctx context.Context) (string, error) {
-	b := make([]byte, 8)
-	if _, err := rand.Read(b); err != nil {
+	if b, err := randBytes([]byte("0123456789"), g.Length); err != nil {
 		return "", err
 	} else {
-		max := int(math.Pow10(g.Length))
-		i := int(big.NewInt(0).SetBytes(b).Int64())
-		r := (i%max + max) % max
-		return fmt.Sprintf("%0"+strconv.Itoa(g.Length)+"d", r), nil
+		return string(b), nil
 	}
 }
 
 func (g PINGenerator) Sanitize(ctx context.Context, s string) (string, error) {
 	return s, nil
+}
+
+// randBytes returns a random array of bytes picked from `p` of length `n`.
+func randBytes(p []byte, n int) ([]byte, error) {
+	if len(p) > 256 {
+		return nil, errors.New("randBytes requires a pool of <= 256 items")
+	}
+	c := len(p)
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		return nil, err
+	}
+	// Pick items randomly out of `p`. Because it's possible that
+	// `len(p) < size(byte)`, use remainder in next iteration to ensure all
+	// bytes have an equal chance of being selected.
+	j := 0 // reservoir
+	for i := 0; i < n; i++ {
+		bb := int(b[i])
+		b[i] = p[(j+bb)%c]
+		j += (c + (c-bb)%c) % c
+	}
+	return b, nil
 }

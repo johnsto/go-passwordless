@@ -6,6 +6,7 @@ import (
 	"golang.org/x/net/context"
 )
 
+// Transport represents a mechanism that sends a named recipient a token.
 type Transport interface {
 	// Send instructs the transport to send the given token for the specified
 	// user to the given recipient, which could be an email address, phone

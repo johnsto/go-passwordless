@@ -10,15 +10,21 @@ import (
 
 type MemStore struct {
 	mut         sync.Mutex
-	data        map[string]Token
+	data        map[string]memToken
 	cleaner     *time.Ticker
 	quitCleaner chan (struct{})
+}
+
+type memToken struct {
+	UID         string
+	HashedToken string
+	Expires     time.Time
 }
 
 func NewMemStore() *MemStore {
 	ct := time.NewTicker(time.Minute)
 	ms := &MemStore{
-		data:    make(map[string]Token),
+		data:    make(map[string]memToken),
 		cleaner: ct,
 	}
 	// Run cleaner periodically
@@ -47,7 +53,7 @@ func (s *MemStore) Store(ctx context.Context, token, uid string, ttl time.Durati
 
 	s.mut.Lock()
 	defer s.mut.Unlock()
-	s.data[uid] = Token{
+	s.data[uid] = memToken{
 		UID:         uid,
 		HashedToken: hashToken,
 		Expires:     time.Now().Add(ttl),
