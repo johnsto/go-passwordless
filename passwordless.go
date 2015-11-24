@@ -19,34 +19,44 @@ type Strategy interface {
 	TokenGenerator
 	// TTL should return the time-to-live of generated tokens.
 	TTL(context.Context) time.Duration
+	// Valid should return true if this strategy is valid with the current
+	// context.
+	Valid(context.Context) bool
 }
 
-// SimpleStrategy combines a Transport, TokenGenerator and TTL into a struct
-// for convenience.
+// SimpleStrategy is a convenience wrapper combining a Transport,
+// TokenGenerator, and TTL.
 type SimpleStrategy struct {
 	Transport
 	TokenGenerator
 	ttl time.Duration
 }
 
+// TTL returns the time-to-live of this strategy.
 func (s SimpleStrategy) TTL(context.Context) time.Duration {
 	return s.ttl
 }
 
-type Passwordless struct {
-	Transports map[string]Strategy
-	store      TokenStore
-	opts       Options
+// Valid always returns true for SimpleStrategy.
+func (s SimpleStrategy) Valid(context.Context) bool {
+	return true
 }
 
-type Options struct {
+// Passwordless pairs
+type Passwordless struct {
+	Strategies map[string]Strategy
+	Store      TokenStore
 }
 
 func New(store TokenStore) *Passwordless {
 	return &Passwordless{
-		store:      store,
-		Transports: make(map[string]Strategy),
+		Store:      store,
+		Strategies: make(map[string]Strategy),
 	}
+}
+
+func (p *Passwordless) SetStrategy(name string, s Strategy) {
+	p.Strategies[name] = s
 }
 
 // SetTransport registers a transport strategy under a specified name. The
@@ -54,53 +64,61 @@ func New(store TokenStore) *Passwordless {
 // are valid. Some delivery mechanisms may require longer TTLs than others
 // depending on the nature/punctuality of the transport.
 func (p *Passwordless) SetTransport(name string, t Transport, g TokenGenerator, ttl time.Duration) {
-	p.Transports[name] = SimpleStrategy{
+	p.SetStrategy(name, SimpleStrategy{
 		Transport:      t,
 		TokenGenerator: g,
 		ttl:            ttl,
-	}
+	})
 }
 
-// ListTransports returns a list of transports mapped to their respective
-// names. When multiple transports are registered, this can be useful if you
-// want to let the user choose one.
-func (p *Passwordless) ListTransports(ctx context.Context) map[string]Transport {
-	ts := map[string]Transport{}
-	for n, t := range p.Transports {
-		ts[n] = t
+// ListStrategies returns a list of strategies valid for the context mapped
+// to their names. If you have multiple strategies, call this in order to
+// provide a list of options for the user to pick from.
+func (p *Passwordless) ListStrategies(ctx context.Context) map[string]Strategy {
+	s := map[string]Strategy{}
+	for n, t := range p.Strategies {
+		if t.Valid(ctx) {
+			s[n] = t
+		}
 	}
-	return ts
+	return s
 }
 
-// GetTransport returns the Transport of the given name, or nil if one does
+// GetStrategy returns the Strategy of the given name, or nil if one does
 // not exist.
-func (p *Passwordless) GetTransport(ctx context.Context, name string) Transport {
-	return p.Transports[name]
+func (p *Passwordless) GetStrategy(ctx context.Context, name string) (Strategy, error) {
+	t, ok := p.Strategies[name]
+	if !ok {
+		return nil, fmt.Errorf("unknown strategy '%s'", name)
+	} else if !t.Valid(ctx) {
+		return nil, fmt.Errorf("strategy '%s' not valid for context", name)
+	}
+	return t, nil
 }
 
 // RequestToken generates and delivers a token to the given user.
 func (p *Passwordless) RequestToken(ctx context.Context, s, uid, recipient string) error {
-	st, ok := p.Transports[s]
-	if !ok {
-		return fmt.Errorf("unknown strategy '%s'", s)
+	if t, err := p.GetStrategy(ctx, s); err != nil {
+		return err
+	} else {
+		return RequestToken(ctx, p.Store, t, uid, recipient)
 	}
-	return requestToken(ctx, p.store, st, st, uid, recipient, st.TTL(ctx))
 }
 
 // VerifyToken verifies the provided token is valid.
 func (p *Passwordless) VerifyToken(ctx context.Context, uid, token string) (bool, error) {
-	return verifyToken(ctx, p.store, uid, token)
+	return VerifyToken(ctx, p.Store, uid, token)
 }
 
-// requestToken generates, saves and delivers a token to the specified
+// RequestToken generates, saves and delivers a token to the specified
 // recipient.
-func requestToken(ctx context.Context, s TokenStore, t Transport, g TokenGenerator, uid, recipient string, ttl time.Duration) error {
-	tok, err := g.Generate(nil)
+func RequestToken(ctx context.Context, s TokenStore, t Strategy, uid, recipient string) error {
+	tok, err := t.Generate(nil)
 	if err != nil {
 		return err
 	}
 	// Store token
-	if err := s.Store(ctx, tok, uid, ttl); err != nil {
+	if err := s.Store(ctx, tok, uid, t.TTL(ctx)); err != nil {
 		return err
 	}
 	// Send token to use
@@ -110,8 +128,8 @@ func requestToken(ctx context.Context, s TokenStore, t Transport, g TokenGenerat
 	return nil
 }
 
-// verifyToken checks the given token.
-func verifyToken(ctx context.Context, s TokenStore, uid, token string) (bool, error) {
+// VerifyToken checks the given token.
+func VerifyToken(ctx context.Context, s TokenStore, uid, token string) (bool, error) {
 	if isValid, err := s.Verify(ctx, token, uid); err != nil {
 		return false, err
 	} else if !isValid {

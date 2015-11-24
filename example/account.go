@@ -19,11 +19,11 @@ func signinHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err := tmpl.ExecuteTemplate(w, "signin", struct {
-			Strategies map[string]passwordless.Transport
+			Strategies map[string]passwordless.Strategy
 			Context    *Context
 			Next       string
 		}{
-			Strategies: pw.ListTransports(nil),
+			Strategies: pw.ListStrategies(nil),
 			Context:    getTemplateContext(w, r, session),
 			Next:       r.FormValue("next"),
 		}); err != nil {
