@@ -42,12 +42,15 @@ func (s SimpleStrategy) Valid(context.Context) bool {
 	return true
 }
 
-// Passwordless pairs
+// Passwordless holds a set of named strategies and an associated token store.
 type Passwordless struct {
 	Strategies map[string]Strategy
 	Store      TokenStore
 }
 
+// New returns a new Passwordless instance with the specified token store.
+// Register strategies against this instance with either `SetStrategy` or
+// `SetTransport`.
 func New(store TokenStore) *Passwordless {
 	return &Passwordless{
 		Store:      store,
@@ -55,6 +58,7 @@ func New(store TokenStore) *Passwordless {
 	}
 }
 
+// SetStrategy registers the given strategy.
 func (p *Passwordless) SetStrategy(name string, s Strategy) {
 	p.Strategies[name] = s
 }
@@ -96,7 +100,8 @@ func (p *Passwordless) GetStrategy(ctx context.Context, name string) (Strategy, 
 	return t, nil
 }
 
-// RequestToken generates and delivers a token to the given user.
+// RequestToken generates and delivers a token to the given user. If the
+// specified strategy is not known or not valid, an error is returned.
 func (p *Passwordless) RequestToken(ctx context.Context, s, uid, recipient string) error {
 	if t, err := p.GetStrategy(ctx, s); err != nil {
 		return err
@@ -128,14 +133,14 @@ func RequestToken(ctx context.Context, s TokenStore, t Strategy, uid, recipient 
 	return nil
 }
 
-// VerifyToken checks the given token.
+// VerifyToken checks the given token against the provided token store.
 func VerifyToken(ctx context.Context, s TokenStore, uid, token string) (bool, error) {
 	if isValid, err := s.Verify(ctx, token, uid); err != nil {
 		return false, err
 	} else if !isValid {
 		return false, nil
+	} else {
+		// Delete old token
+		return true, s.Delete(ctx, uid)
 	}
-
-	// Delete old token
-	return true, s.Delete(ctx, uid)
 }

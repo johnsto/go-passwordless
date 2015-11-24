@@ -14,7 +14,7 @@ type testTransport struct {
 	err       error
 }
 
-func (t *testTransport) Send(ctx context.Context, token, recipient string) error {
+func (t *testTransport) Send(ctx context.Context, token, user, recipient string) error {
 	t.token = token
 	t.recipient = recipient
 	return t.err
@@ -37,11 +37,16 @@ func TestPasswordless(t *testing.T) {
 	p := New(NewMemStore())
 	tt := &testTransport{}
 	tg := &testGenerator{token: "1337"}
-	p.SetTransport("test", tt, tg, 5*time.Minute)
+	s := SimpleStrategy{tt, tg, 5 * time.Minute}
+	p.SetStrategy("test", s)
 
 	// Check transports match those set
-	assert.Equal(t, map[string]Transport{"test": tt}, p.ListTransports(nil))
-	assert.Equal(t, tt, p.GetTransport(nil, "test"))
+	assert.Equal(t, map[string]Strategy{"test": s}, p.ListStrategies(nil))
+	if s0, err := p.GetStrategy(nil, "test"); err != nil {
+		assert.NoError(t, err)
+	} else {
+		assert.Equal(t, s, s0)
+	}
 
 	// Check returned token is as expected
 	assert.NoError(t, p.RequestToken(nil, "test", "uid", "recipient"))
@@ -50,7 +55,7 @@ func TestPasswordless(t *testing.T) {
 
 	// Check invalid token is rejected
 	v, err := p.VerifyToken(nil, "uid", "badtoken")
-	assert.Error(t, err)
+	assert.NoError(t, err)
 	assert.False(t, v)
 
 	// Verify token
