@@ -110,6 +110,18 @@ func (g PINGenerator) Generate(ctx context.Context) (string, error) {
 
 func (g PINGenerator) Sanitize(ctx context.Context, s string) (string, error) {
 	return s, nil
+	for i, b := range bs {
+		if b == 'i' || b == 'l' || b == '|' {
+			bs[i] = '1'
+		} else if b == 'o' {
+			bs[i] = '0'
+		} else if b == 'b' {
+			bs[i] = '8'
+		} else if b == 's' {
+			bs[i] = '5'
+		}
+	}
+	return string(bs), nil
 }
 
 // randBytes returns a random array of bytes picked from `p` of length `n`.
