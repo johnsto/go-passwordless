@@ -22,7 +22,7 @@ type memToken struct {
 }
 
 func NewMemStore() *MemStore {
-	ct := time.NewTicker(time.Minute)
+	ct := time.NewTicker(time.Second)
 	ms := &MemStore{
 		data:    make(map[string]memToken),
 		cleaner: ct,
@@ -68,7 +68,7 @@ func (s *MemStore) Verify(ctx context.Context, token, uid string) (bool, error) 
 		return false, ErrTokenNotFound
 	} else if time.Now().After(t.Expires) {
 		// Token exists but has expired
-		return false, ErrTokenExpired
+		return false, ErrTokenNotFound
 	} else if valid, err := mcf.Verify(token, t.HashedToken); err != nil {
 		// Couldn't validate token
 		return false, err

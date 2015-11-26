@@ -95,11 +95,6 @@ func tokenHandler(w http.ResponseWriter, r *http.Request) {
 			session.AddFlash("token_not_found")
 			http.Redirect(w, r, "/account/signin", http.StatusTemporaryRedirect)
 			return
-		} else if err == passwordless.ErrTokenExpired {
-			// Token expired, user was too slow.
-			session.AddFlash("token_expired")
-			http.Redirect(w, r, "/account/signin", http.StatusTemporaryRedirect)
-			return
 		} else if err != nil {
 			// Some other unexpected error!
 			writeError(w, r, session, http.StatusInternalServerError, Error{

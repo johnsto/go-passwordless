@@ -11,7 +11,6 @@ import (
 
 var (
 	ErrTokenNotFound = errors.New("the token does not exist")
-	ErrTokenExpired  = errors.New("the token has expired")
 	ErrTokenNotValid = errors.New("the token is incorrect")
 )
 

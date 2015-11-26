@@ -57,6 +57,8 @@ func main() {
 
 	// Setup signin/out routes
 	http.HandleFunc("/account/signin", signinHandler)
+	// FIXME: tokenHandler should be rate-limited to reduce susceptibility to
+	// brute-force attacks. See `gopkg.in/throttled/throttled.v2`
 	http.HandleFunc("/account/token", tokenHandler)
 	http.HandleFunc("/account/signout", signoutHandler)
 
@@ -64,7 +66,7 @@ func main() {
 	restricted := http.NewServeMux()
 	http.HandleFunc("/restricted", RestrictedHandler(
 		baseURL+"/account/signin", restricted))
-	restricted.HandleFunc("/", secretHandler)
+	restricted.HandleFunc("/", tmplHandler("secret"))
 
 	// Listen!
 	log.Fatal(http.ListenAndServe(":8080",
@@ -94,6 +96,7 @@ func RestrictedHandler(signinUrl string, h http.Handler) func(http.ResponseWrite
 	})
 }
 
+// tmplHandler returns a Handler that executes the named template.
 func tmplHandler(name string) func(http.ResponseWriter, *http.Request) {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if session, err := getSession(w, r); err == nil {
@@ -104,14 +107,4 @@ func tmplHandler(name string) func(http.ResponseWriter, *http.Request) {
 			})
 		}
 	})
-}
-
-func secretHandler(w http.ResponseWriter, r *http.Request) {
-	if session, err := getSession(w, r); err == nil {
-		tmpl.ExecuteTemplate(w, "secret", struct {
-			Context *Context
-		}{
-			Context: getTemplateContext(w, r, session),
-		})
-	}
 }

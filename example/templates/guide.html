@@ -3,23 +3,38 @@
 {{ template "header" . }}
 
 <section class="container px2">
+	<h2>Overview</h2>
+
+	<p>The Passwordless flow is based on a similar principle to one-time passwords. It goes something like the following:</p>
+	<ol>
+		<li>Your site prompts user for authentication method (e.g. sms, email, drone...).</li>
+		<li>User enters a 'recipient' string (e.g. telephone number, email address, lat/lon...)</li>
+		<li>Passwordless generates and stores a token/PIN that is hard to guess.</li>
+		<li>Passwordless sends this token/PIN to the named recipient.</li>
+		<li>When the user receives the token, they enter it back into your site.</li>
+		<li>Passwordless checks the token they entered is the same as the one that was sent to them, thereby verifying they are the recipient.</li>
+	</ol>
+	<p>This implementation of Passwordless provides patterns and implementations for the backend services to implement this flow. Presentation, storage and user management are left to you.</p>
+
 	<h2>Getting Started</h2>
 
-	<h3>1. Install</h3>
+	<h3>1. Get and import</h3>
 	<p>Install the library with <code>go get</code>:</p>
 	<pre><code class="bash">$ go get github.com/johnsto/go-passwordless</code></pre>
 	<p>The base library includes implementations for both memory and cookie-based token stores (<code>MemStore</code> and <code>CookieStore</code>, respectively), as well as an email transport (<code>SMTPTransport</code>) and token generators (<code>PINGenerator</code> and <code>CrockfordGenerator</code>).</p>
-	<p>If you have a particular storage or token requirements, simply implement the <code>Transport</code> and <code>TokenGenerator</code> interfaces.</p>
 
-	<h3>2. Import</h3>
+	<p>Import the library thus:</p>
 	<pre><code class="go">import "github.com/johnsto/go-passwordless"</code></pre>
 	<p>This will import the base functionality under the <code>passwordless</code> namespace.</p>
 
-	<h3>3. Configure</h3>
+	<h3>2. Configure</h3>
 	<p>Create an instance of Passwordless with your chosen token store. In this case, <code>MemStore</code> will hold tokens in memory until they expire.</p>
 	
 	<pre><code class="go">pw = passwordless.New(passwordless.NewMemStore())</pre></code>
-	<p>Then add a transport strategy that describes how to send a token to the user. In this case we're using the <code>LogTransport</code> which simply writes the token to the console for testing purposes.</p>
+
+	<p class="rounded border p1"><i class="fa fa-info-circle"></i> If you have different storage requirements, the <code>Store</code> interface is very simple and can be used to provide a custom implementation.</p>
+
+	<p>Then add a transport strategy that describes how to send a token to the user. In this case we're using the <code>LogTransport</code> which simply writes the token to the console for testing purposes. It will be registered under the name "log".</p>
 	<pre><code class="go">pw.SetTransport("log", passwordless.LogTransport{
 	MessageFunc: func(token, uid string) string {
 		return fmt.Sprintf("Your PIN is %s", token)
@@ -29,9 +44,9 @@
 	<p>A production system might want to let a user authenticate via email and SMS, whereby the code might look like this instead:</p>
 	<pre><code class="go">pw.SetTransport("email", emailTransport, passwordless.NewCrockfordGenerator(32), 30*time.Minute)
 pw.SetTransport("sms", smsTransport, passwordless.NewPINGenerator(8), 30*time.Minute)</code></pre>
-	<p>Creating a custom token generator is as simple as implementing the <code>TokenGenerator</code> interface, which consists of just two functions.</p>
+	<p class="rounded border p1"><i class="fa fa-info-circle"></i> Creating a custom token generator is as simple as implementing the <code>TokenGenerator</code> interface, which consists of just two functions.</p>
 
-	<h3>4. Route</h3>
+	<h3>3. Route</h3>
 	<p>There are typically two routes requires to sign-in:</p>
 	<ul>
 		<li>/signin - lets the user choose and enter a means to contact them (e.g. an email address)</li>
@@ -39,11 +54,12 @@ pw.SetTransport("sms", smsTransport, passwordless.NewPINGenerator(8), 30*time.Mi
 	</ul>
 	<p>The example application names these two routes <code>/account/signin</code> and <code>/account/token</code>, but the library does not mandate any particular naming scheme.</p>
 	<p>This library does <em>not</em> provide implementations for these routes (besides the examples), as every site has slightly different requirements.</p>
-	<h4>Signin</h4>
+	<h4>3.1 Signin endpoint</h4>
 	<p>This simply shows a form whereby the user can enter their email address. If you have multiple auth methods - for example email and SMS - it presents two forms, and the user can choose the one they prefer. The form POST's itself to the token endpoint, below.</p>
-	<p>In fact, the only call this route needs to make is to <code>passwordless.ListTransports</code>, which will return a list of registered strategies to display to the user.</p>
-	<h4>Token</h4>
-	<p>This route can both generate and verify tokens, depending on the request.</p>
+	<p>The only call this route makes to Passwordless is to <code>passwordless.ListTransports</code>, which will return a list strategies to display to the user.</p>
+
+	<h4>3.2 Token endpoint</h4>
+	<p>This route can both generates and verifies tokens, depending on the request.</p>
 	<p>In the 'generate' case (i.e. when a token is not provided in the request), the code must call <code>passwordless.RequestToken</code> with the appropriate arguments from the 'signin' route - namely the delivery strategy (e.g. <code>"email"</code>, a recipient value entered by the user from the 'signin' page (e.g. an email address), and a user ID string for the recipient (e.g. a UUID or database ID, depending on your backend.)</p>
 	<pre><code class="go">strategy := r.FormValue("strategy")
 recipient := r.FormValue("recipient")
@@ -54,8 +70,9 @@ err := pw.RequestToken(ctx, strategy, user.ID, recipient)</code></pre>
 uid := r.FormValue("uid")
 valid, err := pw.VerifyToken(ctx, uid, token)</code></pre>
 	<p>If <code>valid</code> is <code>true</code>, the user can be considered authenticated and the login process is complete. At this point, you may want to set a secure session cookie to keep the user logged in.</p>
-</section>
+	<p class="rounded border p1"><i class="fa fa-warning"></i> The lower the cardinality of the generated token, the more susceptible the token endpoint is to brute-force guessing. It is advisable to use a rate-limiting handler like <a href="http://gopkg.in/throttled/throttled.v2">gopkg.in/throttled/throttled.v2</a> to limit the number of requests clients can make.</p>
 
+</section>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/highlight.js/8.9.1/styles/default.min.css"></link>
 <script src="https://cdn.jsdelivr.net/g/highlight.js@8.9.1(highlight.min.js+languages/go.min.js+languages/bash.min.js)"></script>
 <script>hljs.initHighlightingOnLoad();</script>
