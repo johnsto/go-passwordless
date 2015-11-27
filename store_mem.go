@@ -62,6 +62,19 @@ func (s *MemStore) Store(ctx context.Context, token, uid string, ttl time.Durati
 	return nil
 }
 
+func (s *MemStore) Exists(ctx context.Context, uid string) (bool, time.Time, error) {
+	if t, ok := s.data[uid]; !ok {
+		// No known token for this user
+		return false, time.Time{}, nil
+	} else if time.Now().After(t.Expires) {
+		// Token exists, but expired
+		return false, time.Time{}, nil
+	} else {
+		// Token exists and is still valid
+		return true, t.Expires, nil
+	}
+}
+
 func (s *MemStore) Verify(ctx context.Context, token, uid string) (bool, error) {
 	if t, ok := s.data[uid]; !ok {
 		// No token in database

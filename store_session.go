@@ -71,6 +71,43 @@ func (s *CookieStore) Store(ctx context.Context, token, uid string, ttl time.Dur
 	return nil
 }
 
+func (s *CookieStore) Exists(ctx context.Context, uid string) (bool, time.Time, error) {
+	// Read cookie
+	_, req := fromContext(ctx)
+	var cookie *http.Cookie
+	var err error
+	if cookie, err = req.Cookie(s.Key); err != nil {
+		return false, time.Time{}, err
+	} else if time.Now().After(cookie.Expires) {
+		return false, time.Time{}, nil
+	}
+
+	// Read JWT string from cookie
+	var tokString string
+	if err = s.cs.Decode(s.Key, cookie.Value, &tokString); err != nil {
+		return false, time.Time{}, err
+	}
+
+	// Parse JWT string
+	tok, err := s.parseToken(tokString)
+
+	// Reject invalid JWTs
+	if err != nil || !tok.Valid {
+		return false, time.Time{}, err
+	}
+
+	// Check token is for the same UID
+	if u, ok := tok.Claims["uid"].(string); !ok {
+		// Token contains bad UID
+		return false, time.Time{}, errors.New("invalid UID in token")
+	} else if u != uid {
+		// Token is for a different UID
+		return false, time.Time{}, errors.New("different UID in token")
+	}
+
+	return true, cookie.Expires, nil
+}
+
 // Verify reads the cookie from the request and verifies it against the
 // provided values, returning true on success.
 func (s *CookieStore) Verify(ctx context.Context, pin, uid string) (bool, error) {
@@ -117,14 +154,19 @@ func (s *CookieStore) newToken(pin, uid string, exp time.Time) (string, error) {
 	return tok.SignedString(s.sk)
 }
 
-// verifyToken verifies an *unencrypted* JWT token.
-func (s *CookieStore) verifyToken(t, pin, uid string) (bool, error) {
-	tok, err := jwt.Parse(t, func(token *jwt.Token) (interface{}, error) {
+// parseToken parses the token stored in the given strinng.
+func (s *CookieStore) parseToken(t string) (*jwt.Token, error) {
+	return jwt.Parse(t, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("verifyToken: unexpected signing method %s", token.Header["alg"])
 		}
 		return s.sk, nil
 	})
+}
+
+// verifyToken verifies an *unencrypted* JWT token.
+func (s *CookieStore) verifyToken(t, pin, uid string) (bool, error) {
+	tok, err := s.parseToken(t)
 
 	// Reject invalid JWTs
 	if err != nil || !tok.Valid {

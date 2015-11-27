@@ -109,7 +109,7 @@ func (g PINGenerator) Generate(ctx context.Context) (string, error) {
 }
 
 func (g PINGenerator) Sanitize(ctx context.Context, s string) (string, error) {
-	return s, nil
+	bs := []byte(strings.ToLower(s))
 	for i, b := range bs {
 		if b == 'i' || b == 'l' || b == '|' {
 			bs[i] = '1'

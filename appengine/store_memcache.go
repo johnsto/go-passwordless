@@ -28,6 +28,20 @@ func (s MemcacheStore) Store(ctx context.Context, token, uid string, ttl time.Du
 	})
 }
 
+// Exists returns true if a token for the specified user exists. The returned
+// `time.Time` will always be set to zero as memcache doesn't provide this
+// property for retrieved items.
+func (s MemcacheStore) Exists(ctx context.Context, uid string) (bool, time.Time, error) {
+	_, err := memcache.Get(ctx, s.KeyPrefix+uid)
+	if err == memcache.ErrCacheMiss {
+		// No known token for this user
+		return false, time.Time{}, nil
+	} else {
+		// Token exists and is still valid
+		return true, time.Time{}, nil
+	}
+}
+
 func (s MemcacheStore) Verify(ctx context.Context, token, uid string) (bool, error) {
 	item, err := memcache.Get(ctx, s.KeyPrefix+uid)
 	if err == memcache.ErrCacheMiss {

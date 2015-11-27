@@ -70,7 +70,7 @@ err := pw.RequestToken(ctx, strategy, user.ID, recipient)</code></pre>
 uid := r.FormValue("uid")
 valid, err := pw.VerifyToken(ctx, uid, token)</code></pre>
 	<p>If <code>valid</code> is <code>true</code>, the user can be considered authenticated and the login process is complete. At this point, you may want to set a secure session cookie to keep the user logged in.</p>
-	<p class="rounded border p1"><i class="fa fa-warning"></i> The lower the cardinality of the generated token, the more susceptible the token endpoint is to brute-force guessing. It is advisable to use a rate-limiting handler like <a href="http://gopkg.in/throttled/throttled.v2">gopkg.in/throttled/throttled.v2</a> to limit the number of requests clients can make.</p>
+	<p class="rounded border p1"><i class="fa fa-warning"></i> The lower the cardinality of the generated token, the more susceptible the token endpoint is to brute-force guessing. It is advisable to use a rate-limiting handler like <a href="http://gopkg.in/throttled/throttled.v2">gopkg.in/throttled/throttled.v2</a> to limit the number of requests clients can make. Throttling is also advisable to prevent the spamming of recipients with tokens.</p>
 
 </section>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/highlight.js/8.9.1/styles/default.min.css"></link>
