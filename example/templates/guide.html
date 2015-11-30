@@ -49,23 +49,25 @@ pw.SetTransport("sms", smsTransport, passwordless.NewPINGenerator(8), 30*time.Mi
 	<h3>3. Route</h3>
 	<p>There are typically two routes requires to sign-in:</p>
 	<ul>
-		<li>/signin - lets the user choose and enter a means to contact them (e.g. an email address)</li>
-		<li>/token - allows the user to enter the code they have received, and verifies it. Also used as a link included in emails to automatically verify a provided token.</li>
+		<li><em>/signin</em> - lets the user choose and enter a means to contact them (e.g. an email address)</li>
+		<li><em>/token</em> - allows the user to enter the code they have received, and verifies it. Also used as a link included in emails to automatically verify a provided token.</li>
 	</ul>
 	<p>The example application names these two routes <code>/account/signin</code> and <code>/account/token</code>, but the library does not mandate any particular naming scheme.</p>
 	<p>This library does <em>not</em> provide implementations for these routes (besides the examples), as every site has slightly different requirements.</p>
 	<h4>3.1 Signin endpoint</h4>
-	<p>This simply shows a form whereby the user can enter their email address. If you have multiple auth methods - for example email and SMS - it presents two forms, and the user can choose the one they prefer. The form POST's itself to the token endpoint, below.</p>
 	<p>The only call this route makes to Passwordless is to <code>passwordless.ListTransports</code>, which will return a list strategies to display to the user.</p>
+	<p>The page can then display a form whereby the user can enter their email address. If you have multiple auth methods - for example email and SMS - it presents two forms, and the user can choose the one they prefer. The form POST's to the token endpoint, below.</p>
 
 	<h4>3.2 Token endpoint</h4>
-	<p>This route can both generates and verifies tokens, depending on the request.</p>
-	<p>In the 'generate' case (i.e. when a token is not provided in the request), the code must call <code>passwordless.RequestToken</code> with the appropriate arguments from the 'signin' route - namely the delivery strategy (e.g. <code>"email"</code>, a recipient value entered by the user from the 'signin' page (e.g. an email address), and a user ID string for the recipient (e.g. a UUID or database ID, depending on your backend.)</p>
+	<p>This route can both generates and verifies tokens, depending on whether the request contains a token to verify.</p>
+	<p>In the 'generate' case (i.e. when a token is not provided in the request, as is the case when coming from the signin endpoint), the code must call <code>passwordless.RequestToken</code> with the appropriate form values provided the 'signin' route - namely the delivery strategy (e.g. <code>"email"</code>, a recipient value entered by the user from the 'signin' page (e.g. an email address), and a user ID string for the recipient (e.g. a UUID or database ID, depending on your backend.)</p>
 	<pre><code class="go">strategy := r.FormValue("strategy")
 recipient := r.FormValue("recipient")
 user := Users.Find(recipient)
 err := pw.RequestToken(ctx, strategy, user.ID, recipient)</code></pre>
-	<p>The page should inform the user that a token has been generated and sent to their specified address. It should also then show a form wherby the user can enter the token they've received, for the 'verify' case.</p>
+	<p class="rounded border p1"><i class="fa fa-info-circle"></i> Typically the email will contain a link directly to the /token endpoint containing the token, so one click is all it needs for the user to be signed in.</p>
+	<p>The page should inform the user that a token has been generated and sent to their specified address, and display a form that the user can enter the token into.</p>
+	<p>When the user enters their token, it can POST back onto itself, this time containing the entered token and the user's UID. The token can then be verified:</p>
 	<pre><code class="go">token := r.FormValue("token")
 uid := r.FormValue("uid")
 valid, err := pw.VerifyToken(ctx, uid, token)</code></pre>

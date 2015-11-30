@@ -19,7 +19,7 @@ type Strategy interface {
 	TokenGenerator
 	// TTL should return the time-to-live of generated tokens.
 	TTL(context.Context) time.Duration
-	// Valid should return true if this strategy is valid with the current
+	// Valid should return true if this strategy is valid for the provided
 	// context.
 	Valid(context.Context) bool
 }
@@ -32,7 +32,7 @@ type SimpleStrategy struct {
 	ttl time.Duration
 }
 
-// TTL returns the time-to-live of this strategy.
+// TTL returns the time-to-live of tokens generated with this strategy.
 func (s SimpleStrategy) TTL(context.Context) time.Duration {
 	return s.ttl
 }
@@ -118,7 +118,7 @@ func (p *Passwordless) VerifyToken(ctx context.Context, uid, token string) (bool
 // RequestToken generates, saves and delivers a token to the specified
 // recipient.
 func RequestToken(ctx context.Context, s TokenStore, t Strategy, uid, recipient string) error {
-	tok, err := t.Generate(nil)
+	tok, err := t.Generate(ctx)
 	if err != nil {
 		return err
 	}
@@ -126,7 +126,7 @@ func RequestToken(ctx context.Context, s TokenStore, t Strategy, uid, recipient 
 	if err := s.Store(ctx, tok, uid, t.TTL(ctx)); err != nil {
 		return err
 	}
-	// Send token to use
+	// Send token to user
 	if err := t.Send(ctx, tok, uid, recipient); err != nil {
 		return err
 	}
@@ -136,11 +136,13 @@ func RequestToken(ctx context.Context, s TokenStore, t Strategy, uid, recipient 
 // VerifyToken checks the given token against the provided token store.
 func VerifyToken(ctx context.Context, s TokenStore, uid, token string) (bool, error) {
 	if isValid, err := s.Verify(ctx, token, uid); err != nil {
+		// Failed to validate
 		return false, err
 	} else if !isValid {
+		// Token is not valid
 		return false, nil
 	} else {
-		// Delete old token
+		// Token *is* valid; remove old token
 		return true, s.Delete(ctx, uid)
 	}
 }

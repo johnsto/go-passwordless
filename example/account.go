@@ -39,6 +39,7 @@ func signinHandler(w http.ResponseWriter, r *http.Request) {
 func tokenHandler(w http.ResponseWriter, r *http.Request) {
 	session, err := getSession(w, r)
 	if err != nil {
+		log.Println(err)
 		return
 	}
 
@@ -110,7 +111,7 @@ func tokenHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	tmpl.ExecuteTemplate(w, "token", struct {
+	if err := tmpl.ExecuteTemplate(w, "token", struct {
 		Context    *Context
 		Strategy   string
 		Recipient  string
@@ -124,7 +125,9 @@ func tokenHandler(w http.ResponseWriter, r *http.Request) {
 		Context:    getTemplateContext(w, r, session),
 		Next:       r.FormValue("next"),
 		TokenError: tokenError,
-	})
+	}); err != nil {
+		log.Printf("couldn't render template: %v", err)
+	}
 }
 
 func signoutHandler(w http.ResponseWriter, r *http.Request) {

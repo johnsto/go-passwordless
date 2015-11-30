@@ -21,6 +21,7 @@ type memToken struct {
 	Expires     time.Time
 }
 
+// NewMemStore creates and returns a new `MemStore`
 func NewMemStore() *MemStore {
 	ct := time.NewTicker(time.Second)
 	ms := &MemStore{
