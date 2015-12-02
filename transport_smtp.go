@@ -1,10 +1,14 @@
 package passwordless
 
 import (
+	"bytes"
+	"crypto/md5"
 	"crypto/tls"
+	"fmt"
 	"io"
 	"net"
 	"net/smtp"
+	"time"
 
 	"golang.org/x/net/context"
 )
@@ -12,6 +16,71 @@ import (
 // ComposerFunc is called when writing the contents of an email, including
 // preamble headers.
 type ComposerFunc func(ctx context.Context, token, recipient string, w io.Writer) error
+
+// Email is a helper for creating multipart (text and html) emails
+type Email struct {
+	Body    map[string]string
+	Subject string
+}
+
+// SetBody sets a content section within the email. The `contentType` should
+// be a known type, such as "text/html" or "text/plain". If no `contentType`
+// is provided, "text/plain" is used.
+func (e Email) SetBody(contentType, body string) {
+	if e.Body == nil {
+		e.Body = make(map[string]string)
+	}
+	if contentType == "" {
+		contentType = "text/plain"
+	}
+	e.Body[contentType] = body
+}
+
+// Write emits the Email to the specified writer.
+func (e Email) Write(w io.Writer) (int64, error) {
+	return e.Buffer().WriteTo(w)
+}
+
+// Bytes returns the contents of the email as a series of bytes.
+func (e Email) Bytes() []byte {
+	return e.Buffer().Bytes()
+}
+
+func (e Email) Buffer() *bytes.Buffer {
+	crlf := "\r\n"
+	b := bytes.NewBuffer(nil)
+
+	b.WriteString("Date: " + time.Now().UTC().Format(time.RFC822) + crlf)
+	if e.Subject != "" {
+		b.WriteString("Subject: " + e.Subject + crlf)
+	}
+
+	boundary := ""
+	if len(e.Body) > 1 {
+		// Generate boundary to separate sections
+		h := md5.New()
+		io.WriteString(h, fmt.Sprintf("%s", time.Now().UnixNano()))
+		boundary := fmt.Sprintf("%x", h.Sum(nil))
+
+		// Write boundary
+		b.WriteString("Content-Type: multipart/alternative; boundary=" +
+			boundary + crlf + crlf)
+		b.WriteString("--" + boundary + crlf)
+	} else {
+		b.WriteString(crlf)
+	}
+
+	for ct, c := range e.Body {
+		b.WriteString("MIME-version: 1.0;\nContent-Type: " +
+			ct + "; charset=\"UTF-8\";\n\n")
+		b.WriteString(crlf + c + crlf)
+		if boundary != "" {
+			b.WriteString(crlf + "--" + boundary + crlf)
+		}
+	}
+
+	return b
+}
 
 // SMTPTransport delivers a user token via e-mail.
 type SMTPTransport struct {
@@ -38,7 +107,7 @@ func NewSMTPTransport(addr, from, subject string, auth smtp.Auth, c ComposerFunc
 
 // Send sends an email to the email address specified in `recipient`,
 // containing the user token provided.
-func (t *SMTPTransport) Send(ctx context.Context, token, recipient string) error {
+func (t *SMTPTransport) Send(ctx context.Context, token, uid, recipient string) error {
 	host, _, _ := net.SplitHostPort(t.addr)
 
 	// If UseSSL is true, need to ensure the connection is made over a

@@ -70,12 +70,23 @@ func writeError(w http.ResponseWriter, r *http.Request, s *sessions.Session, sta
 func getSession(w http.ResponseWriter, r *http.Request) (*sessions.Session, error) {
 	session, err := store.Get(r, "passwordless-example")
 	if err != nil {
-		writeError(w, r, session, http.StatusUnauthorized, Error{
+		/*writeError(w, r, session, http.StatusUnauthorized, Error{
 			Name:        "Couldn't get session",
 			Description: err.Error(),
 			Error:       err,
 		})
-		return nil, err
+		return nil, err*/
+		log.Println(err)
+		session, err = store.New(r, "passwordless-example")
+		if err != nil {
+			writeError(w, r, session, http.StatusUnauthorized, Error{
+				Name:        "Couldn't get session",
+				Description: err.Error(),
+				Error:       err,
+			})
+			return nil, err
+		}
+		//session.AddFlash("signed_out")
 	}
 	return session, err
 }

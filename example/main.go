@@ -1,16 +1,20 @@
 package main
 
 import (
-	"fmt"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
+	"net/smtp"
 	"net/url"
+	"os"
 	"time"
 
 	"bitbucket.org/johnsto/go-passwordless"
-	"github.com/gorilla/context"
+	gcontext "github.com/gorilla/context"
+	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
+	"golang.org/x/net/context"
 )
 
 var pw *passwordless.Passwordless
@@ -28,27 +32,45 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	baseURL = "http://localhost:8080"
-	store = sessions.NewCookieStore([]byte("my insecure key!"))
+	baseURL = os.Getenv("PWL_BASE_URL")
+	if baseURL == "" {
+		baseURL = "http://localhost:8080"
+		log.Printf("PWL_BASE_URL not defined; using %s", baseURL)
+	}
+
+	cookieKey := []byte(os.Getenv("PWL_KEY_COOKIE_STORE"))
+	if len(cookieKey) == 0 {
+		log.Println("PWL_KEY_COOKIE_STORE not defined; using random key")
+		cookieKey = securecookie.GenerateRandomKey(16)
+	}
+
+	store = sessions.NewCookieStore(cookieKey)
 
 	// Passwordless: init with ephemeral memory store and two handlers
-	//tokStore := passwordless.NewMemStore()
-	tokStore := passwordless.NewCookieStore(
-		[]byte("abracadabrawizzy"), // signing key
-		[]byte("authenticatorkey"), // auth key
-		[]byte("theencryptionkey")) // encryption key
+	tokStore := passwordless.NewMemStore()
 	pw = passwordless.New(tokStore)
-	pw.SetTransport("email", passwordless.LogTransport{
+	pw.SetTransport("email", passwordless.NewSMTPTransport(
+		os.Getenv("PWL_EMAIL_ADDR"),
+		os.Getenv("PWL_EMAIL_FROM"),
+		"Your go-passwordless login link",
+		smtp.PlainAuth(
+			os.Getenv("PWL_EMAIL_AUTH_IDENTITY"),
+			os.Getenv("PWL_EMAIL_AUTH_USERNAME"),
+			os.Getenv("PWL_EMAIL_AUTH_PASSWORD"),
+			os.Getenv("PWL_EMAIL_AUTH_HOST")),
+		func(ctx context.Context, token, recipient string, w io.Writer) error {
+			e := passwordless.Email{Subject: "test"}
+			e.SetBody("", "hello")
+			_, err := e.Write(w)
+			return err
+		},
+	), passwordless.NewCrockfordGenerator(4), 30*time.Minute)
+	/*pw.SetTransport("debug", passwordless.LogTransport{
 		MessageFunc: func(token, uid string) string {
 			return fmt.Sprintf("Login at %s/account/verify?token=%s&uid=%s",
 				baseURL, token, uid)
 		},
-	}, passwordless.NewCrockfordGenerator(12), 30*time.Minute)
-	pw.SetTransport("sms", passwordless.LogTransport{
-		MessageFunc: func(token, uid string) string {
-			return fmt.Sprintf("Your PIN is %s", token)
-		},
-	}, passwordless.PINGenerator{6}, 30*time.Minute)
+	}, passwordless.NewCrockfordGenerator(4), 30*time.Minute)*/
 
 	// Setup routes
 	http.HandleFunc("/", tmplHandler("index"))
@@ -70,7 +92,7 @@ func main() {
 
 	// Listen!
 	log.Fatal(http.ListenAndServe(":8080",
-		context.ClearHandler(http.DefaultServeMux)))
+		gcontext.ClearHandler(http.DefaultServeMux)))
 }
 
 // RestrictedHandler wraps handlers and redirects the client to the specified
