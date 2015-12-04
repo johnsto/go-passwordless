@@ -69,16 +69,9 @@ func writeError(w http.ResponseWriter, r *http.Request, s *sessions.Session, sta
 // appropriate error page (and returns the error) on failure.
 func getSession(w http.ResponseWriter, r *http.Request) (*sessions.Session, error) {
 	session, err := store.Get(r, "passwordless-example")
-	if err != nil {
-		/*writeError(w, r, session, http.StatusUnauthorized, Error{
-			Name:        "Couldn't get session",
-			Description: err.Error(),
-			Error:       err,
-		})
-		return nil, err*/
-		log.Println(err)
+	if err != nil && session == nil {
 		session, err = store.New(r, "passwordless-example")
-		if err != nil {
+		if err != nil && session == nil {
 			writeError(w, r, session, http.StatusUnauthorized, Error{
 				Name:        "Couldn't get session",
 				Description: err.Error(),
@@ -86,9 +79,8 @@ func getSession(w http.ResponseWriter, r *http.Request) (*sessions.Session, erro
 			})
 			return nil, err
 		}
-		//session.AddFlash("signed_out")
 	}
-	return session, err
+	return session, nil
 }
 
 func isSignedIn(s *sessions.Session) bool {

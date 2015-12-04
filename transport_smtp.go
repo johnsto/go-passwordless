@@ -15,25 +15,27 @@ import (
 
 // ComposerFunc is called when writing the contents of an email, including
 // preamble headers.
-type ComposerFunc func(ctx context.Context, token, recipient string, w io.Writer) error
+type ComposerFunc func(ctx context.Context, token, user, recipient string, w io.Writer) error
 
 // Email is a helper for creating multipart (text and html) emails
 type Email struct {
-	Body    map[string]string
+	Body    []struct{ t, c string }
+	To      string
 	Subject string
 }
 
-// SetBody sets a content section within the email. The `contentType` should
+// AddBody adds a content section to the email. The `contentType` should
 // be a known type, such as "text/html" or "text/plain". If no `contentType`
-// is provided, "text/plain" is used.
-func (e Email) SetBody(contentType, body string) {
+// is provided, "text/plain" is used. Call this method for each required
+// body, with the most preferable type last.
+func (e *Email) AddBody(contentType, body string) {
 	if e.Body == nil {
-		e.Body = make(map[string]string)
+		e.Body = make([]struct{ t, c string }, 0)
 	}
 	if contentType == "" {
 		contentType = "text/plain"
 	}
-	e.Body[contentType] = body
+	e.Body = append(e.Body, struct{ t, c string }{contentType, body})
 }
 
 // Write emits the Email to the specified writer.
@@ -54,29 +56,32 @@ func (e Email) Buffer() *bytes.Buffer {
 	if e.Subject != "" {
 		b.WriteString("Subject: " + e.Subject + crlf)
 	}
+	if e.To != "" {
+		b.WriteString("To: " + e.To + crlf)
+	}
 
 	boundary := ""
 	if len(e.Body) > 1 {
 		// Generate boundary to separate sections
 		h := md5.New()
 		io.WriteString(h, fmt.Sprintf("%s", time.Now().UnixNano()))
-		boundary := fmt.Sprintf("%x", h.Sum(nil))
+		boundary = fmt.Sprintf("%x", h.Sum(nil))
 
 		// Write boundary
+		b.WriteString("MIME-version: 1.0" + crlf)
 		b.WriteString("Content-Type: multipart/alternative; boundary=" +
 			boundary + crlf + crlf)
-		b.WriteString("--" + boundary + crlf)
-	} else {
-		b.WriteString(crlf)
 	}
 
-	for ct, c := range e.Body {
-		b.WriteString("MIME-version: 1.0;\nContent-Type: " +
-			ct + "; charset=\"UTF-8\";\n\n")
-		b.WriteString(crlf + c + crlf)
+	for _, body := range e.Body {
 		if boundary != "" {
 			b.WriteString(crlf + "--" + boundary + crlf)
 		}
+		b.WriteString("Content-Type: " + body.t + "; charset=\"UTF-8\";")
+		b.WriteString(crlf + crlf + body.c + crlf)
+	}
+	if boundary != "" {
+		b.WriteString(crlf + "--" + boundary + "--" + crlf)
 	}
 
 	return b
@@ -165,7 +170,7 @@ func (t *SMTPTransport) Send(ctx context.Context, token, uid, recipient string) 
 	}
 
 	// Emit message body
-	if err := t.composer(ctx, token, recipient, w); err != nil {
+	if err := t.composer(ctx, token, uid, recipient, w); err != nil {
 		return err
 	}
 

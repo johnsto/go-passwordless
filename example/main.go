@@ -58,9 +58,17 @@ func main() {
 			os.Getenv("PWL_EMAIL_AUTH_USERNAME"),
 			os.Getenv("PWL_EMAIL_AUTH_PASSWORD"),
 			os.Getenv("PWL_EMAIL_AUTH_HOST")),
-		func(ctx context.Context, token, recipient string, w io.Writer) error {
-			e := passwordless.Email{Subject: "test"}
-			e.SetBody("", "hello")
+		func(ctx context.Context, token, uid, recipient string, w io.Writer) error {
+			e := &passwordless.Email{
+				Subject: "test",
+				To:      recipient,
+			}
+			link := baseURL + "/account/token" +
+				"?strategy=email&token=" + token + "&uid=" + uid
+			e.AddBody("text/plain", "Your PIN is "+token+".\n\n"+
+				"Or you can log in at the following link: "+link)
+			e.AddBody("text/html", "<!doctype html><html><body>Login "+
+				"<a href=\""+link+"\">here</a></body></html>")
 			_, err := e.Write(w)
 			return err
 		},

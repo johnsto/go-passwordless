@@ -62,6 +62,9 @@ func tokenHandler(w http.ResponseWriter, r *http.Request) {
 	// tokenError will be set if the user enters a bad token.
 	tokenError := ""
 
+	log.Println("strategy:", strategy, "recipient:", recipient,
+		"uid: ", uid, "token:", token)
+
 	if uid == "" {
 		// Lookup user ID. We just use the recipient in this demo.
 		uid = recipient
@@ -69,7 +72,9 @@ func tokenHandler(w http.ResponseWriter, r *http.Request) {
 
 	if token == "" {
 		// No token provided, so send one to the user.
+		log.Println("Sending token")
 		if err := pw.RequestToken(ctx, strategy, uid, recipient); err != nil {
+			log.Println("Error sending token", err)
 			writeError(w, r, session, http.StatusInternalServerError, Error{
 				Name:        "Internal Error",
 				Description: err.Error(),
@@ -77,6 +82,7 @@ func tokenHandler(w http.ResponseWriter, r *http.Request) {
 			})
 			return
 		}
+		log.Println("Token sent")
 	} else {
 		// User has provided a token, verify it against provided uid.
 		valid, err := pw.VerifyToken(ctx, uid, token)
@@ -111,6 +117,7 @@ func tokenHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	log.Println("Writing response")
 	if err := tmpl.ExecuteTemplate(w, "token", struct {
 		Context    *Context
 		Strategy   string
