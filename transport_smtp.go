@@ -135,8 +135,8 @@ func (t *SMTPTransport) Send(ctx context.Context, token, uid, recipient string) 
 		if cl, err := smtp.Dial(t.addr); err != nil {
 			return err
 		} else {
-			defer c.Close()
 			c = cl
+			defer c.Close()
 		}
 	}
 
