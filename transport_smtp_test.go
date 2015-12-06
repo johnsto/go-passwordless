@@ -1,6 +1,9 @@
 package passwordless
 
 import (
+	"io/ioutil"
+	"mime/multipart"
+	"net/mail"
 	"regexp"
 	"testing"
 	"time"
@@ -8,46 +11,58 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSMTPTransport(t *testing.T) {
-}
-
 func TestEmail(t *testing.T) {
+	d := time.Date(2001, 2, 3, 4, 5, 6, 0, time.UTC)
 	e := Email{
 		To:      "bender@ilovebender.com",
-		Subject: "Your Destroy all Humans subscription",
-		Date:    time.Date(2001, 2, 3, 4, 5, 6, 0, time.UTC),
+		Subject: "Mom Calling",
+		Date:    d,
 	}
-	exp := "Date: 03 Feb 01 04:05 UTC\r\n" +
-		"Subject: Your Destroy all Humans subscription\r\n" +
-		"To: bender@ilovebender.com\r\n"
-	assert.Equal(t, exp, string(e.Bytes()))
 
-	e.AddBody("", "Has elapsed")
-	exp = "Date: 03 Feb 01 04:05 UTC\r\n" +
-		"Subject: Your Destroy all Humans subscription\r\n" +
-		"To: bender@ilovebender.com\r\n" +
-		"Content-Type: text/plain; charset=\"UTF-8\";\r\n" +
-		"\r\nHas elapsed\r\n"
-	assert.Equal(t, exp, string(e.Bytes()))
+	// Empty body
+	m, err := mail.ReadMessage(e.Buffer())
+	assert.NoError(t, err)
+	assert.Equal(t, "bender@ilovebender.com", m.Header.Get("To"))
+	assert.Equal(t, "Mom Calling", m.Header.Get("Subject"))
+	assert.Equal(t, d.Format(time.RFC822), m.Header.Get("Date"))
 
-	e.AddBody("text/html", "<html>HTML!</html>")
-	s := string(e.Bytes())
-	r := regexp.MustCompile("boundary=([a-zA-Z0-9]+)\r\n")
-	boundary := r.FindStringSubmatch(s)[1]
-	exp = "Date: 03 Feb 01 04:05 UTC\r\n" +
-		"Subject: Your Destroy all Humans subscription\r\n" +
-		"To: bender@ilovebender.com\r\n" +
-		"MIME-Version: 1.0\r\n" +
-		"Content-Type: multipart/alternative; boundary=" + boundary + "\r\n" +
-		"\r\n" +
-		"\r\n" +
-		"--" + boundary + "\r\n" +
-		"Content-Type: text/plain; charset=\"UTF-8\";\r\n" +
-		"\r\nHas elapsed\r\n" +
-		"\r\n" +
-		"--" + boundary + "\r\n" +
-		"Content-Type: text/html; charset=\"UTF-8\";\r\n" +
-		"\r\n<html>HTML!</html>\r\n\r\n" +
-		"--" + boundary + "--\r\n"
-	assert.Equal(t, exp, string(s))
+	// Plain body
+	e.AddBody("", "Hello dear")
+	m, err = mail.ReadMessage(e.Buffer())
+	assert.NoError(t, err)
+	assert.Equal(t, "text/plain; charset=\"UTF-8\";", m.Header.Get("Content-Type"))
+	body, err := ioutil.ReadAll(m.Body)
+	assert.NoError(t, err)
+	assert.Equal(t, "Hello dear\r\n", string(body))
+
+	// Additional HTML body (multipart)
+	e.AddBody("text/html", "<html><body>Hello dear</body></html>")
+	m, err = mail.ReadMessage(e.Buffer())
+	ct := m.Header.Get("Content-Type")
+	re := regexp.MustCompile("^multipart/alternative; boundary=([a-z0-9]+)$")
+	assert.Regexp(t, re, ct)
+	boundary := re.FindStringSubmatch(ct)[1]
+	assert.NotEmpty(t, boundary)
+
+	mpr := multipart.NewReader(m.Body, boundary)
+
+	// Read first part
+	p, err := mpr.NextPart()
+	assert.NoError(t, err, "reading first part")
+	assert.Equal(t, "text/plain; charset=\"UTF-8\";", p.Header.Get("Content-Type"))
+	body, err = ioutil.ReadAll(p)
+	assert.NoError(t, err, "reading body of first part")
+	assert.Equal(t, "Hello dear", string(body))
+
+	// Read second part
+	p, err = mpr.NextPart()
+	assert.NoError(t, err, "reading second part")
+	assert.Equal(t, "text/html; charset=\"UTF-8\";", p.Header.Get("Content-Type"))
+	body, err = ioutil.ReadAll(p)
+	assert.NoError(t, err, "reading body of second part")
+	assert.Equal(t, "<html><body>Hello dear</body></html>", string(body))
+
+	// Read (non-existent) next part
+	p, err = mpr.NextPart()
+	assert.Nil(t, p)
 }

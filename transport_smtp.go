@@ -162,6 +162,8 @@ func (e Email) Buffer() *bytes.Buffer {
 	}
 
 	boundary := ""
+
+	// Write multipart header if email contains multiple parts
 	if len(e.Body) > 1 {
 		// Generate unique boundary to separate sections
 		h := md5.New()
@@ -174,16 +176,18 @@ func (e Email) Buffer() *bytes.Buffer {
 			boundary + crlf + crlf)
 	}
 
+	// Write each part
 	for _, body := range e.Body {
 		if boundary != "" {
 			b.WriteString(crlf + "--" + boundary + crlf)
 		}
 		b.WriteString("Content-Type: " + body.t + "; charset=\"UTF-8\";")
-		b.WriteString(crlf + crlf + body.c + crlf)
+		b.WriteString(crlf + crlf + body.c)
 	}
 	if boundary != "" {
-		b.WriteString(crlf + "--" + boundary + "--" + crlf)
+		b.WriteString(crlf + "--" + boundary + "--")
 	}
+	b.WriteString(crlf)
 
 	return b
 }
