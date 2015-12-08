@@ -2,15 +2,16 @@ package passwordless
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"golang.org/x/net/context"
 )
 
 var (
-	ErrNoStore     = errors.New("no store has been configured")
-	ErrNoTransport = errors.New("no transports have been configured")
+	ErrNoStore            = errors.New("no store has been configured")
+	ErrNoTransport        = errors.New("no transports have been configured")
+	ErrUnknownStrategy    = errors.New("unknown strategy")
+	ErrNotValidForContext = errors.New("strategy not valid for context")
 )
 
 // Strategy defines how to send and what tokens to send to users.
@@ -93,9 +94,9 @@ func (p *Passwordless) ListStrategies(ctx context.Context) map[string]Strategy {
 func (p *Passwordless) GetStrategy(ctx context.Context, name string) (Strategy, error) {
 	t, ok := p.Strategies[name]
 	if !ok {
-		return nil, fmt.Errorf("unknown strategy '%s'", name)
+		return nil, ErrUnknownStrategy
 	} else if !t.Valid(ctx) {
-		return nil, fmt.Errorf("strategy '%s' not valid for context", name)
+		return nil, ErrNotValidForContext
 	}
 	return t, nil
 }

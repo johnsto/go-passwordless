@@ -38,6 +38,7 @@ func TestEmail(t *testing.T) {
 	// Additional HTML body (multipart)
 	e.AddBody("text/html", "<html><body>Hello dear</body></html>")
 	m, err = mail.ReadMessage(e.Buffer())
+	assert.Equal(t, "1.0", m.Header.Get("MIME-Version"))
 	ct := m.Header.Get("Content-Type")
 	re := regexp.MustCompile("^multipart/alternative; boundary=([a-z0-9]+)$")
 	assert.Regexp(t, re, ct)

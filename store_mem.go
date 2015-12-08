@@ -8,6 +8,8 @@ import (
 	"golang.org/x/net/context"
 )
 
+// MemStore is a Store that keeps tokens in memory, expiring them periodically
+// when they expire.
 type MemStore struct {
 	mut         sync.Mutex
 	data        map[string]memToken
@@ -25,28 +27,30 @@ type memToken struct {
 func NewMemStore() *MemStore {
 	ct := time.NewTicker(time.Second)
 	ms := &MemStore{
-		data:    make(map[string]memToken),
-		cleaner: ct,
+		data:        make(map[string]memToken),
+		quitCleaner: make(chan struct{}),
+		cleaner:     ct,
 	}
 	// Run cleaner periodically
-	go func() {
+	go func(quit chan struct{}) {
 	ticker:
 		for {
 			select {
 			case <-ct.C:
 				// Run clean cycle
 				ms.Clean()
-			case <-ms.quitCleaner:
+			case <-quit:
 				// Release resources
 				ct.Stop()
 				break ticker
 			}
 		}
-	}()
+	}(ms.quitCleaner)
 	return ms
 }
 
-func (s *MemStore) Store(ctx context.Context, token, uid string, ttl time.Duration) error {
+func (s *MemStore) Store(ctx context.Context, token, uid string,
+	ttl time.Duration) error {
 	hashToken, err := mcf.Create(token)
 	if err != nil {
 		return err
@@ -116,6 +120,6 @@ func (s *MemStore) Clean() {
 // Release disposes of the MemStore and any released resources
 func (s *MemStore) Release() {
 	s.cleaner.Stop()
-	s.quitCleaner <- struct{}{}
+	close(s.quitCleaner)
 	s.data = nil
 }

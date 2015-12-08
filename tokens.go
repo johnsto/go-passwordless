@@ -115,8 +115,10 @@ func (g PINGenerator) Sanitize(ctx context.Context, s string) (string, error) {
 			bs[i] = '1'
 		} else if b == 'o' {
 			bs[i] = '0'
-		} else if b == 'b' {
+		} else if s[i] == 'B' {
 			bs[i] = '8'
+		} else if s[i] == 'b' {
+			bs[i] = '6'
 		} else if b == 's' {
 			bs[i] = '5'
 		}
