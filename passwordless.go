@@ -68,12 +68,14 @@ func (p *Passwordless) SetStrategy(name string, s Strategy) {
 // TTL specifies for how long tokens generated with the provided TokenGenerator
 // are valid. Some delivery mechanisms may require longer TTLs than others
 // depending on the nature/punctuality of the transport.
-func (p *Passwordless) SetTransport(name string, t Transport, g TokenGenerator, ttl time.Duration) {
-	p.SetStrategy(name, SimpleStrategy{
+func (p *Passwordless) SetTransport(name string, t Transport, g TokenGenerator, ttl time.Duration) Strategy {
+	s := SimpleStrategy{
 		Transport:      t,
 		TokenGenerator: g,
 		ttl:            ttl,
-	})
+	}
+	p.SetStrategy(name, s)
+	return s
 }
 
 // ListStrategies returns a list of strategies valid for the context mapped

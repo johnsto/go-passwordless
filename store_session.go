@@ -12,6 +12,14 @@ import (
 	"golang.org/x/net/context"
 )
 
+var (
+	ErrNoResponseWriter = errors.New("Context passed to CookieStore.Store " +
+		"does not contain a ResponseWriter")
+	ErrInvalidTokenUID = errors.New("invalid UID in token")
+	ErrInvalidTokenPIN = errors.New("invalid PIN in token")
+	ErrWrongTokenUID   = errors.New("wrong UID in token")
+)
+
 // CookieStore stores tokens in a encrypted cookie on the user's browser.
 // This token is then decrypted and checked against the provided value to
 // determine of the token is valid.
@@ -41,8 +49,7 @@ func NewCookieStore(signingKey, authKey, encrKey []byte) *CookieStore {
 func (s *CookieStore) Store(ctx context.Context, token, uid string, ttl time.Duration) error {
 	rw, _ := fromContext(ctx)
 	if rw == nil {
-		return errors.New("Context passed to CookieStore.Store does not " +
-			"contain a ResponseWriter")
+		return ErrNoResponseWriter
 	}
 
 	// Create signed token
@@ -76,10 +83,9 @@ func (s *CookieStore) Exists(ctx context.Context, uid string) (bool, time.Time, 
 	_, req := fromContext(ctx)
 	var cookie *http.Cookie
 	var err error
+
 	if cookie, err = req.Cookie(s.Key); err != nil {
 		return false, time.Time{}, err
-	} else if time.Now().After(cookie.Expires) {
-		return false, time.Time{}, nil
 	}
 
 	// Read JWT string from cookie
@@ -87,7 +93,6 @@ func (s *CookieStore) Exists(ctx context.Context, uid string) (bool, time.Time, 
 	if err = s.cs.Decode(s.Key, cookie.Value, &tokString); err != nil {
 		return false, time.Time{}, err
 	}
-
 	// Parse JWT string
 	tok, err := s.parseToken(tokString)
 
@@ -99,13 +104,14 @@ func (s *CookieStore) Exists(ctx context.Context, uid string) (bool, time.Time, 
 	// Check token is for the same UID
 	if u, ok := tok.Claims["uid"].(string); !ok {
 		// Token contains bad UID
-		return false, time.Time{}, errors.New("invalid UID in token")
+		return false, time.Time{}, ErrInvalidTokenUID
 	} else if u != uid {
 		// Token is for a different UID
-		return false, time.Time{}, errors.New("different UID in token")
+		return false, time.Time{}, ErrWrongTokenUID
 	}
 
-	return true, cookie.Expires, nil
+	exp := time.Unix(int64(tok.Claims["exp"].(float64)), 0)
+	return true, exp, nil
 }
 
 // Verify reads the cookie from the request and verifies it against the
@@ -132,8 +138,7 @@ func (s *CookieStore) Verify(ctx context.Context, pin, uid string) (bool, error)
 func (s *CookieStore) Delete(ctx context.Context, uid string) error {
 	rw, _ := fromContext(ctx)
 	if rw == nil {
-		return errors.New("Context passed to CookieStore.Store does not " +
-			"contain a ResponseWriter")
+		return ErrNoResponseWriter
 	}
 	cookie := &http.Cookie{
 		MaxAge: 0,
@@ -175,9 +180,9 @@ func (s *CookieStore) verifyToken(t, pin, uid string) (bool, error) {
 
 	// Check token matches supplied data.
 	if u, ok := tok.Claims["uid"].(string); !ok {
-		return false, errors.New("invalid UID in token")
+		return false, ErrInvalidTokenUID
 	} else if p, ok := tok.Claims["pin"].(string); !ok {
-		return false, errors.New("invalid PIN in token")
+		return false, ErrInvalidTokenPIN
 	} else {
 		validUID := (u == uid)
 		validPIN := (1 == subtle.ConstantTimeCompare([]byte(p), []byte(pin)))

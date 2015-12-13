@@ -39,8 +39,7 @@ func TestPasswordless(t *testing.T) {
 
 	tt := &testTransport{}
 	tg := &testGenerator{token: "1337"}
-	s := SimpleStrategy{tt, tg, 5 * time.Minute}
-	p.SetStrategy("test", s)
+	s := p.SetTransport("test", tt, tg, 5*time.Minute)
 
 	// Check transports match those set
 	assert.Equal(t, map[string]Strategy{"test": s}, p.ListStrategies(nil))
@@ -88,52 +87,6 @@ func TestPasswordlessFailures(t *testing.T) {
 
 	err = p.RequestToken(nil, "unfriendly", "", "")
 	assert.Equal(t, err, ErrNotValidForContext)
-}
-
-type mockStrategy struct {
-	SimpleStrategy
-	generate func(context.Context) (string, error)
-	sanitize func(context.Context, string) (string, error)
-	send     func(c context.Context, token, user, recipient string) error
-}
-
-func (m mockStrategy) TTL(ctx context.Context) time.Duration {
-	return m.ttl
-}
-
-func (m mockStrategy) Generate(ctx context.Context) (string, error) {
-	return m.generate(ctx)
-}
-
-func (m mockStrategy) Sanitize(ctx context.Context, t string) (string, error) {
-	return m.sanitize(ctx, t)
-}
-
-func (m mockStrategy) Send(ctx context.Context, token, user, recipient string) error {
-	return m.send(ctx, token, user, recipient)
-}
-
-type mockTokenStore struct {
-	store  func(ctx context.Context, token, uid string, ttl time.Duration) error
-	exists func(ctx context.Context, uid string) (bool, time.Time, error)
-	verify func(ctx context.Context, token, uid string) (bool, error)
-	delete func(ctx context.Context, uid string) error
-}
-
-func (m mockTokenStore) Store(ctx context.Context, token, uid string, ttl time.Duration) error {
-	return m.store(ctx, token, uid, ttl)
-}
-
-func (m mockTokenStore) Exists(ctx context.Context, uid string) (bool, time.Time, error) {
-	return m.exists(ctx, uid)
-}
-
-func (m mockTokenStore) Verify(ctx context.Context, token, uid string) (bool, error) {
-	return m.verify(ctx, token, uid)
-}
-
-func (m mockTokenStore) Delete(ctx context.Context, uid string) error {
-	return m.delete(ctx, uid)
 }
 
 func TestRequestToken(t *testing.T) {
@@ -201,4 +154,50 @@ func TestVerifyToken(t *testing.T) {
 	}, "", "")
 	assert.True(t, valid)
 	assert.EqualError(t, err, "delete failure")
+}
+
+type mockStrategy struct {
+	SimpleStrategy
+	generate func(context.Context) (string, error)
+	sanitize func(context.Context, string) (string, error)
+	send     func(c context.Context, token, user, recipient string) error
+}
+
+func (m mockStrategy) TTL(ctx context.Context) time.Duration {
+	return m.ttl
+}
+
+func (m mockStrategy) Generate(ctx context.Context) (string, error) {
+	return m.generate(ctx)
+}
+
+func (m mockStrategy) Sanitize(ctx context.Context, t string) (string, error) {
+	return m.sanitize(ctx, t)
+}
+
+func (m mockStrategy) Send(ctx context.Context, token, user, recipient string) error {
+	return m.send(ctx, token, user, recipient)
+}
+
+type mockTokenStore struct {
+	store  func(ctx context.Context, token, uid string, ttl time.Duration) error
+	exists func(ctx context.Context, uid string) (bool, time.Time, error)
+	verify func(ctx context.Context, token, uid string) (bool, error)
+	delete func(ctx context.Context, uid string) error
+}
+
+func (m mockTokenStore) Store(ctx context.Context, token, uid string, ttl time.Duration) error {
+	return m.store(ctx, token, uid, ttl)
+}
+
+func (m mockTokenStore) Exists(ctx context.Context, uid string) (bool, time.Time, error) {
+	return m.exists(ctx, uid)
+}
+
+func (m mockTokenStore) Verify(ctx context.Context, token, uid string) (bool, error) {
+	return m.verify(ctx, token, uid)
+}
+
+func (m mockTokenStore) Delete(ctx context.Context, uid string) error {
+	return m.delete(ctx, uid)
 }

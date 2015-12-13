@@ -27,7 +27,15 @@ func SetContext(ctx context.Context, rw http.ResponseWriter, r *http.Request) co
 // fromContext extracts a `ResponseWriter` and `Request` from the Context,
 // assuming that `SetContext` was called previously to populate it.
 func fromContext(ctx context.Context) (http.ResponseWriter, *http.Request) {
-	rw := ctx.Value(rwKey).(http.ResponseWriter)
-	r := ctx.Value(reqKey).(*http.Request)
-	return rw, r
+	var rw http.ResponseWriter = nil
+	var req *http.Request = nil
+	if ctx != nil {
+		if v, ok := ctx.Value(rwKey).(http.ResponseWriter); ok {
+			rw = v
+		}
+		if v, ok := ctx.Value(reqKey).(*http.Request); ok {
+			req = v
+		}
+	}
+	return rw, req
 }
