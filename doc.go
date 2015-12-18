@@ -1,5 +1,3 @@
-package passwordless
-
 /*
 `go-passwordless` is an implementation of backend services allowing users to sign in to websites without a password, inspired by the [Node package of the same name](passwordless.net).
 
@@ -41,3 +39,4 @@ If `valid` is `true`, the user can be considered authenticated and the login pro
 A complete implementation can be found in the "example" directory.
 
 */
+package passwordless
