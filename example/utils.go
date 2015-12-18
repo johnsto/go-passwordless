@@ -68,9 +68,9 @@ func writeError(w http.ResponseWriter, r *http.Request, s *sessions.Session, sta
 // getSession is a helper method that gets a user session, or emits an
 // appropriate error page (and returns the error) on failure.
 func getSession(w http.ResponseWriter, r *http.Request) (*sessions.Session, error) {
-	session, err := store.Get(r, "passwordless-example")
+	session, err := store.Get(r, SesssionKey)
 	if err != nil && session == nil {
-		session, err = store.New(r, "passwordless-example")
+		session, err = store.New(r, SesssionKey)
 		if err != nil && session == nil {
 			writeError(w, r, session, http.StatusUnauthorized, Error{
 				Name:        "Couldn't get session",

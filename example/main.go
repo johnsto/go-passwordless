@@ -15,7 +15,11 @@ import (
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
 	"golang.org/x/net/context"
+	"gopkg.in/throttled/throttled.v2"
+	"gopkg.in/throttled/throttled.v2/store/memstore"
 )
+
+const SesssionKey string = "go-passwordless-example"
 
 var pw *passwordless.Passwordless
 
@@ -27,8 +31,9 @@ var (
 )
 
 func main() {
-	// Read templates
 	var err error
+
+	// Read templates
 	tmpl, err = template.ParseGlob("templates/*.html")
 	if err != nil {
 		log.Fatalln("couldn't load templates:", err)
@@ -55,7 +60,7 @@ func main() {
 	tokStore := passwordless.NewMemStore()
 	pw = passwordless.New(tokStore)
 
-	// Add Passwordless email transpport using SMTP credentials from env
+	// Add Passwordless email transport using SMTP credentials from env
 	pw.SetTransport("email", passwordless.NewSMTPTransport(
 		os.Getenv("PWL_EMAIL_ADDR"),
 		os.Getenv("PWL_EMAIL_FROM"),
@@ -65,7 +70,7 @@ func main() {
 			os.Getenv("PWL_EMAIL_AUTH_PASSWORD"),
 			os.Getenv("PWL_EMAIL_AUTH_HOST")),
 		emailWriter,
-	), passwordless.NewCrockfordGenerator(4), 30*time.Minute)
+	), passwordless.NewCrockfordGenerator(10), 30*time.Minute)
 
 	// Add debug handler, which prints message to stdout.
 	/*pw.SetTransport("debug", passwordless.LogTransport{
@@ -75,16 +80,18 @@ func main() {
 		},
 	}, passwordless.NewCrockfordGenerator(4), 30*time.Minute)*/
 
+	limiter, err := rateLimiter()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	// Setup routes
 	http.HandleFunc("/", tmplHandler("index"))
-	http.HandleFunc("/about", tmplHandler("about"))
-	http.HandleFunc("/guide", tmplHandler("guide"))
 
 	// Setup signin/out routes
 	http.HandleFunc("/account/signin", signinHandler)
-	// FIXME: tokenHandler should be rate-limited to reduce susceptibility to
-	// brute-force PIN-guessing attacks. See `gopkg.in/throttled/throttled.v2`
-	http.HandleFunc("/account/token", tokenHandler)
+	http.Handle("/account/token",
+		limiter.RateLimit(http.HandlerFunc(tokenHandler)))
 	http.HandleFunc("/account/signout", signoutHandler)
 
 	// Setup restricted routes that require a valid username
@@ -146,14 +153,19 @@ func emailWriter(ctx context.Context, token, uid, recipient string, w io.Writer)
 		"?strategy=email&token=" + token + "&uid=" + uid
 
 	// Ideally these would be populated from templates, but...
-	text := "You (or someone who knows your email address) requested " +
+	text := "You (or someone who knows your email address) wants " +
 		"to sign in to the Go-Passwordless website.\n\n" +
-		"Your PIN is " + token + " - or use the following link: " + link
+		"Your PIN is " + token + " - or use the following link: " +
+		link + "\n\n" +
+		"(If you were did not request or were not expecting this email, " +
+		"you can safely ignore it.)"
 	html := "<!doctype html><html><body>" +
-		"<p>You (or someone who knows your email address) requested " +
+		"<p>You (or someone who knows your email address) wants " +
 		"to sign in to the Go-Passwordless website.</p>" +
 		"<p>Your PIN is <b>" + token + "</b> - or <a href=\"" + link + "\">" +
-		"click here</a> to sign in automatically.</p></body></html>"
+		"click here</a> to sign in automatically.</p>" +
+		"<p>(If you did not request or were not expecting this email, " +
+		"you can safely ignore it.)</p></body></html>"
 
 	// Add content types, from least- to most-preferable.
 	e.AddBody("text/plain", text)
@@ -162,4 +174,23 @@ func emailWriter(ctx context.Context, token, uid, recipient string, w io.Writer)
 	_, err := e.Write(w)
 
 	return err
+}
+
+// rateLimiter creates and returns a new HTTPRateLimiter
+func rateLimiter() (*throttled.HTTPRateLimiter, error) {
+	store, err := memstore.New(0x10000)
+	if err != nil {
+		return nil, err
+	}
+
+	quota := throttled.RateQuota{throttled.PerMin(10), 5}
+
+	rateLimiter, err := throttled.NewGCRARateLimiter(store, quota)
+	if err != nil {
+		return nil, err
+	}
+
+	return &throttled.HTTPRateLimiter{
+		RateLimiter: rateLimiter,
+	}, nil
 }

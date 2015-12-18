@@ -59,17 +59,29 @@ func tokenHandler(w http.ResponseWriter, r *http.Request) {
 
 	// token is only set if the user is trying to verify a token they've got
 	token := r.FormValue("token")
+
 	// tokenError will be set if the user enters a bad token.
 	tokenError := ""
 
 	if uid == "" {
-		// Lookup user ID. We just use the recipient in this demo.
+		// Lookup user ID. We just use the recipient value in this demo,
+		// but typically you'd perform a database query here.
 		uid = recipient
 	}
 
-	if token == "" {
-		// No token provided, so send one to the user.
-		if err := pw.RequestToken(ctx, strategy, uid, recipient); err != nil {
+	if strategy == "" {
+		// No strategy specified in request, so send the user back to
+		// the signin page as we can't do anything without it.
+		session.AddFlash("token_not_found")
+		session.Save(r, w)
+		http.Redirect(w, r, "/account/signin", http.StatusTemporaryRedirect)
+		return
+	} else if token == "" {
+		// No token provided in request, so generate a new one and send it
+		// to the user via their preferred transport strategy.
+		err := pw.RequestToken(ctx, strategy, uid, recipient)
+
+		if err != nil {
 			writeError(w, r, session, http.StatusInternalServerError, Error{
 				Name:        "Internal Error",
 				Description: err.Error(),
@@ -92,12 +104,14 @@ func tokenHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err == passwordless.ErrTokenNotFound {
-			// Token not found, maybe it was a previous one.
+			// Token not found, maybe it was a previous one or expired. Either
+			// way, the user will need to attempt sign-in again.
 			session.AddFlash("token_not_found")
+			session.Save(r, w)
 			http.Redirect(w, r, "/account/signin", http.StatusTemporaryRedirect)
 			return
 		} else if err != nil {
-			// Some other unexpected error!
+			// Some other unexpected error occurred.
 			writeError(w, r, session, http.StatusInternalServerError, Error{
 				Name:        "Failed verifying token",
 				Description: err.Error(),
@@ -105,12 +119,15 @@ func tokenHandler(w http.ResponseWriter, r *http.Request) {
 			})
 			return
 		} else {
-			// User entered bad token. Set token then fall through to template.
+			// User entered bad token. Set token error string then fall
+			// through to template.
 			w.WriteHeader(http.StatusForbidden)
 			tokenError = "The entered token/PIN was incorrect."
 		}
 	}
 
+	// If we've got to this point, the user is being prompted to enter a
+	// valid token value.
 	if err := tmpl.ExecuteTemplate(w, "token", struct {
 		Context    *Context
 		Strategy   string
