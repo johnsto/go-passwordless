@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gyepisam/mcf"
+	"github.com/pzduniak/mcf"
 	"golang.org/x/net/context"
 )
 
@@ -19,7 +19,7 @@ type MemStore struct {
 
 type memToken struct {
 	UID         string
-	HashedToken string
+	HashedToken []byte
 	Expires     time.Time
 }
 
@@ -51,7 +51,7 @@ func NewMemStore() *MemStore {
 
 func (s *MemStore) Store(ctx context.Context, token, uid string,
 	ttl time.Duration) error {
-	hashToken, err := mcf.Create(token)
+	hashToken, err := mcf.Create([]byte(token))
 	if err != nil {
 		return err
 	}
@@ -87,7 +87,7 @@ func (s *MemStore) Verify(ctx context.Context, token, uid string) (bool, error) 
 	} else if time.Now().After(t.Expires) {
 		// Token exists but has expired
 		return false, ErrTokenNotFound
-	} else if valid, err := mcf.Verify(token, t.HashedToken); err != nil {
+	} else if valid, err := mcf.Verify([]byte(token), t.HashedToken); err != nil {
 		// Couldn't validate token
 		return false, err
 	} else if !valid {

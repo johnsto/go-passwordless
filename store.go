@@ -6,7 +6,7 @@ import (
 
 	"golang.org/x/net/context"
 
-	_ "github.com/gyepisam/mcf/scrypt"
+	_ "github.com/pzduniak/mcf/scrypt"
 )
 
 var (
