@@ -7,7 +7,7 @@ import (
 
 	"github.com/gyepisam/mcf"
 	_ "github.com/gyepisam/mcf/scrypt"
-	"golang.org/x/net/context"
+	"context"
 	"google.golang.org/appengine/memcache"
 )
 
