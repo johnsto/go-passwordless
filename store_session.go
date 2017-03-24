@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/securecookie"
 	"golang.org/x/net/context"
+	"gopkg.in/dgrijalva/jwt-go.v2"
 )
 
 var (
