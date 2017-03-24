@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/gorilla/securecookie"
-	"golang.org/x/net/context"
+	"context"
 	"gopkg.in/dgrijalva/jwt-go.v2"
 )
 

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/net/context"
+	"context"
 )
 
 type ctxTestKey int

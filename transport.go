@@ -3,7 +3,7 @@ package passwordless
 import (
 	"log"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 // Transport represents a mechanism that sends a named recipient a token.

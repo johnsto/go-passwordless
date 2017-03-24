@@ -3,7 +3,7 @@ package passwordless
 import (
 	"net/http"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 type ctxKey int

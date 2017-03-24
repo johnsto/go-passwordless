@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/pzduniak/mcf"
-	"golang.org/x/net/context"
+	"context"
 )
 
 // MemStore is a Store that keeps tokens in memory, expiring them periodically

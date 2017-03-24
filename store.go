@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 
 	_ "github.com/pzduniak/mcf/scrypt"
 )

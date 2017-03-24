@@ -10,7 +10,7 @@ import (
 	"net/smtp"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 // ComposerFunc is called when writing the contents of an email, including
