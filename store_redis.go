@@ -77,7 +77,7 @@ func (s RedisStore) Verify(ctx context.Context, token, uid string) (bool, error)
 	return true, nil
 }
 
-// Delete rmoves a key from the store.
+// Delete removes a key from the store.
 func (s RedisStore) Delete(ctx context.Context, uid string) error {
 	_, err := s.client.Del(redisKey(uid)).Result()
 	if err != nil {
