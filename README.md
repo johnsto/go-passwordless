@@ -17,10 +17,11 @@ A Transport provides a means to transmit a token (e.g. a PIN) to the user. There
 Custom transports must adhere to the `Transport` interface, which consists of just one function, making it easy to hook into third-party services (for example, your SMS provider.)
 
 ## Token Stores
-A Token Store provides a mean to securely store and verify a token against user input. There are two implementations provided with this library:
+A Token Store provides a mean to securely store and verify a token against user input. There are three implementations provided with this library:
 
 * *MemStore* - stores encrypted tokens in ephemeral memory.
 * *CookieStore* - stores tokens in encrypted session cookies. Mandates that the user signs in on the same device that they generated the sign in request from.
+* *RedisStore* - stores encrypted tokens in a Redis instance.
 
 Custom stores need to adhere to the *TokenStore* interface, which consists of 4 functions. This interface is intentionally simple to allow for easy integration with whatever database and structure you prefer.
 
