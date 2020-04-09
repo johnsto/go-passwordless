@@ -3,11 +3,12 @@ package appengine
 import (
 	"time"
 
-	"bitbucket.org/johnsto/go-passwordless"
+	"github.com/johnsto/go-passwordless"
+
+	"context"
 
 	"github.com/gyepisam/mcf"
 	_ "github.com/gyepisam/mcf/scrypt"
-	"context"
 	"google.golang.org/appengine/memcache"
 )
 

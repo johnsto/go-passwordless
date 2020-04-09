@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 
-	"bitbucket.org/johnsto/go-passwordless"
+	"github.com/johnsto/go-passwordless"
 )
 
 // signinHandler prompts the user to choose a method by which to send them
