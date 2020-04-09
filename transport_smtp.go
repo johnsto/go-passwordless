@@ -167,7 +167,7 @@ func (e Email) Buffer() *bytes.Buffer {
 	if len(e.Body) > 1 {
 		// Generate unique boundary to separate sections
 		h := md5.New()
-		io.WriteString(h, fmt.Sprintf("%s", time.Now().UnixNano()))
+		io.WriteString(h, fmt.Sprintf("%d", time.Now().UnixNano()))
 		boundary = fmt.Sprintf("%x", h.Sum(nil))
 
 		// Write boundary

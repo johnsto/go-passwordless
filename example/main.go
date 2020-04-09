@@ -10,11 +10,12 @@ import (
 	"os"
 	"time"
 
-	"bitbucket.org/johnsto/go-passwordless"
+	"context"
+
 	gcontext "github.com/gorilla/context"
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
-	"context"
+	"github.com/johnsto/go-passwordless"
 	"gopkg.in/throttled/throttled.v2"
 	"gopkg.in/throttled/throttled.v2/store/memstore"
 )
