@@ -8,6 +8,10 @@ import (
 	"github.com/pzduniak/mcf"
 )
 
+const (
+	redisPrefix = "passwordless-token::"
+)
+
 // RedisStore is a Store that keeps tokens in Redis.
 type RedisStore struct {
 	client redis.UniversalClient
@@ -20,13 +24,17 @@ func NewRedisStore(client redis.UniversalClient) *RedisStore {
 	}
 }
 
+func redisKey(uid string) string {
+	return redisPrefix + uid
+}
+
 // Store a generated token in redis for a user.
 func (s RedisStore) Store(ctx context.Context, token, uid string, ttl time.Duration) error {
 	hashToken, err := mcf.Create([]byte(token))
 	if err != nil {
 		return err
 	}
-	r := s.client.Set(uid, hashToken, ttl)
+	r := s.client.Set(redisKey(uid), hashToken, ttl)
 	if r.Err() != nil {
 		return err
 	}
@@ -36,7 +44,7 @@ func (s RedisStore) Store(ctx context.Context, token, uid string, ttl time.Durat
 
 // Exists checks to see if a token exists.
 func (s RedisStore) Exists(ctx context.Context, uid string) (bool, time.Time, error) {
-	dur, err := s.client.TTL(uid).Result()
+	dur, err := s.client.TTL(redisKey(uid)).Result()
 	if err != nil {
 		if err == redis.Nil {
 			return false, time.Time{}, nil
@@ -52,7 +60,7 @@ func (s RedisStore) Exists(ctx context.Context, uid string) (bool, time.Time, er
 
 // Verify checks to see if a token exists and is valid for a user.
 func (s RedisStore) Verify(ctx context.Context, token, uid string) (bool, error) {
-	r, err := s.client.Get(uid).Result()
+	r, err := s.client.Get(redisKey(uid)).Result()
 	if err != nil {
 		if err == redis.Nil {
 			return false, ErrTokenNotFound
@@ -71,7 +79,7 @@ func (s RedisStore) Verify(ctx context.Context, token, uid string) (bool, error)
 
 // Delete rmoves a key from the store.
 func (s RedisStore) Delete(ctx context.Context, uid string) error {
-	_, err := s.client.Del(uid).Result()
+	_, err := s.client.Del(redisKey(uid)).Result()
 	if err != nil {
 		return err
 	}
