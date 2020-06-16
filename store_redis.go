@@ -36,7 +36,7 @@ func (s RedisStore) Store(ctx context.Context, token, uid string, ttl time.Durat
 	}
 	r := s.client.Set(redisKey(uid), hashToken, ttl)
 	if r.Err() != nil {
-		return err
+		return r.Err()
 	}
 
 	return nil
