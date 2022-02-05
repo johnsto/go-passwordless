@@ -3,6 +3,7 @@ module github.com/johnsto/go-passwordless
 go 1.14
 
 require (
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-redis/redis/v7 v7.4.1
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
@@ -12,7 +13,6 @@ require (
 	github.com/gyepisam/mcf v0.0.0-20181020145543-a4d14a7af431
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/pzduniak/mcf v0.0.0-20160731113721-0ddac5a6d704
-	github.com/stretchr/objx v0.3.0 // indirect
 	github.com/stretchr/testify v1.7.0
 	github.com/throttled/throttled v2.2.4+incompatible // indirect
 	golang.org/x/crypto v0.0.0-20220131195533-30dcbda58838 // indirect
