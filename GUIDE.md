@@ -17,13 +17,13 @@ This implementation of Passwordless provides patterns and implementations for th
 ### 1. Get and import
 Install the library with `go get`:
 
-    $ go get github.com/johnsto/go-passwordless
+    $ go get github.com/johnsto/go-passwordless/v2
 
 The base library includes implementations for both memory and cookie-based token stores (`MemStore` and `CookieStore`, respectively), as well as an email transport (`SMTPTransport`) and token generators (`PINGenerator` and `CrockfordGenerator`).
 
 Import the library thus:
 
-    import "github.com/johnsto/go-passwordless"
+    import "github.com/johnsto/go-passwordless/v2"
 
 This will import the base functionality under the `passwordless` namespace.
 

@@ -3,7 +3,7 @@ package appengine
 import (
 	"time"
 
-	"github.com/johnsto/go-passwordless"
+	"github.com/johnsto/go-passwordless/v2"
 
 	"context"
 

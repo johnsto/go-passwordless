@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/go-redis/redis/v7"
+	"github.com/go-redis/redis/v8"
 	"github.com/pzduniak/mcf"
 )
 
@@ -34,7 +34,7 @@ func (s RedisStore) Store(ctx context.Context, token, uid string, ttl time.Durat
 	if err != nil {
 		return err
 	}
-	r := s.client.Set(redisKey(uid), hashToken, ttl)
+	r := s.client.Set(ctx, redisKey(uid), hashToken, ttl)
 	if r.Err() != nil {
 		return r.Err()
 	}
@@ -44,7 +44,7 @@ func (s RedisStore) Store(ctx context.Context, token, uid string, ttl time.Durat
 
 // Exists checks to see if a token exists.
 func (s RedisStore) Exists(ctx context.Context, uid string) (bool, time.Time, error) {
-	dur, err := s.client.TTL(redisKey(uid)).Result()
+	dur, err := s.client.TTL(ctx, redisKey(uid)).Result()
 	if err != nil {
 		if err == redis.Nil {
 			return false, time.Time{}, nil
@@ -60,7 +60,7 @@ func (s RedisStore) Exists(ctx context.Context, uid string) (bool, time.Time, er
 
 // Verify checks to see if a token exists and is valid for a user.
 func (s RedisStore) Verify(ctx context.Context, token, uid string) (bool, error) {
-	r, err := s.client.Get(redisKey(uid)).Result()
+	r, err := s.client.Get(ctx, redisKey(uid)).Result()
 	if err != nil {
 		if err == redis.Nil {
 			return false, ErrTokenNotFound
@@ -79,7 +79,7 @@ func (s RedisStore) Verify(ctx context.Context, token, uid string) (bool, error)
 
 // Delete removes a key from the store.
 func (s RedisStore) Delete(ctx context.Context, uid string) error {
-	_, err := s.client.Del(redisKey(uid)).Result()
+	_, err := s.client.Del(ctx, redisKey(uid)).Result()
 	if err != nil {
 		return err
 	}

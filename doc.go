@@ -3,11 +3,11 @@
 
 Install the library with `go get`:
 
-    $ go get github.com/johnsto/go-passwordless
+    $ go get github.com/johnsto/go-passwordless/v2
 
 Import the library into your project:
 
-    import "github.com/johnsto/go-passwordless"
+    import "github.com/johnsto/go-passwordless/v2"
 
 Create an instance of Passwordless with your chosen token store. In this case, `MemStore` will hold tokens in memory until they expire.
 
