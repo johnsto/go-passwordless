@@ -3,8 +3,8 @@ module github.com/johnsto/go-passwordless
 go 1.14
 
 require (
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/go-redis/redis/v7 v7.2.0
+	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/gorilla/context v1.1.1
 	github.com/gorilla/securecookie v1.1.1
@@ -15,6 +15,5 @@ require (
 	github.com/stretchr/testify v1.5.1
 	github.com/throttled/throttled v2.2.4+incompatible // indirect
 	google.golang.org/appengine v1.6.5
-	gopkg.in/dgrijalva/jwt-go.v2 v2.7.0
 	gopkg.in/throttled/throttled.v2 v2.2.4
 )
