@@ -7,9 +7,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gorilla/securecookie"
 	"context"
-	"gopkg.in/dgrijalva/jwt-go.v2"
+
+	"github.com/golang-jwt/jwt"
+	"github.com/gorilla/securecookie"
 )
 
 var (
@@ -94,7 +95,7 @@ func (s *CookieStore) Exists(ctx context.Context, uid string) (bool, time.Time, 
 		return false, time.Time{}, err
 	}
 	// Parse JWT string
-	tok, err := s.parseToken(tokString)
+	tok, claims, err := s.parseToken(tokString)
 
 	// Reject invalid JWTs
 	if err != nil || !tok.Valid {
@@ -102,7 +103,7 @@ func (s *CookieStore) Exists(ctx context.Context, uid string) (bool, time.Time, 
 	}
 
 	// Check token is for the same UID
-	if u, ok := tok.Claims["uid"].(string); !ok {
+	if u, ok := claims["uid"].(string); !ok {
 		// Token contains bad UID
 		return false, time.Time{}, ErrInvalidTokenUID
 	} else if u != uid {
@@ -110,7 +111,7 @@ func (s *CookieStore) Exists(ctx context.Context, uid string) (bool, time.Time, 
 		return false, time.Time{}, ErrWrongTokenUID
 	}
 
-	exp := time.Unix(int64(tok.Claims["exp"].(float64)), 0)
+	exp := time.Unix(int64(claims["exp"].(float64)), 0)
 	return true, exp, nil
 }
 
@@ -153,25 +154,29 @@ func (s *CookieStore) Delete(ctx context.Context, uid string) error {
 // pin and user ID.
 func (s *CookieStore) newToken(pin, uid string, exp time.Time) (string, error) {
 	tok := jwt.New(jwt.SigningMethodHS256)
-	tok.Claims["exp"] = exp.Unix()
-	tok.Claims["uid"] = uid
-	tok.Claims["pin"] = pin
+	tok.Claims = jwt.MapClaims{
+		"exp": exp.Unix(),
+		"uid": uid,
+		"pin": pin,
+	}
 	return tok.SignedString(s.sk)
 }
 
 // parseToken parses the token stored in the given strinng.
-func (s *CookieStore) parseToken(t string) (*jwt.Token, error) {
-	return jwt.Parse(t, func(token *jwt.Token) (interface{}, error) {
+func (s *CookieStore) parseToken(t string) (*jwt.Token, jwt.MapClaims, error) {
+	claims := jwt.MapClaims{}
+	tok, err := jwt.ParseWithClaims(t, claims, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("verifyToken: unexpected signing method %s", token.Header["alg"])
 		}
 		return s.sk, nil
 	})
+	return tok, claims, err
 }
 
 // verifyToken verifies an *unencrypted* JWT token.
 func (s *CookieStore) verifyToken(t, pin, uid string) (bool, error) {
-	tok, err := s.parseToken(t)
+	tok, claims, err := s.parseToken(t)
 
 	// Reject invalid JWTs
 	if err != nil || !tok.Valid {
@@ -179,9 +184,9 @@ func (s *CookieStore) verifyToken(t, pin, uid string) (bool, error) {
 	}
 
 	// Check token matches supplied data.
-	if u, ok := tok.Claims["uid"].(string); !ok {
+	if u, ok := claims["uid"].(string); !ok {
 		return false, ErrInvalidTokenUID
-	} else if p, ok := tok.Claims["pin"].(string); !ok {
+	} else if p, ok := claims["pin"].(string); !ok {
 		return false, ErrInvalidTokenPIN
 	} else {
 		validUID := (u == uid)
