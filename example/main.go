@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"html/template"
 	"io"
 	"log"
@@ -12,7 +13,6 @@ import (
 
 	"context"
 
-	gcontext "github.com/gorilla/context"
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
 	"github.com/johnsto/go-passwordless"
@@ -62,24 +62,27 @@ func main() {
 	pw = passwordless.New(tokStore)
 
 	// Add Passwordless email transport using SMTP credentials from env
-	pw.SetTransport("email", passwordless.NewSMTPTransport(
-		os.Getenv("PWL_EMAIL_ADDR"),
-		os.Getenv("PWL_EMAIL_FROM"),
-		smtp.PlainAuth(
-			os.Getenv("PWL_EMAIL_AUTH_IDENTITY"),
-			os.Getenv("PWL_EMAIL_AUTH_USERNAME"),
-			os.Getenv("PWL_EMAIL_AUTH_PASSWORD"),
-			os.Getenv("PWL_EMAIL_AUTH_HOST")),
-		emailWriter,
-	), passwordless.NewCrockfordGenerator(10), 30*time.Minute)
-
-	// Add debug handler, which prints message to stdout.
-	/*pw.SetTransport("debug", passwordless.LogTransport{
-		MessageFunc: func(token, uid string) string {
-			return fmt.Sprintf("Login at %s/account/verify?token=%s&uid=%s",
-				baseURL, token, uid)
-		},
-	}, passwordless.NewCrockfordGenerator(4), 30*time.Minute)*/
+	if fromAddr := os.Getenv("PWL_EMAIL_ADDR"); fromAddr != "" {
+		log.Printf("Using email transport via %s", fromAddr)
+		pw.SetTransport("email", passwordless.NewSMTPTransport(
+			os.Getenv("PWL_EMAIL_ADDR"),
+			os.Getenv("PWL_EMAIL_FROM"),
+			smtp.PlainAuth(
+				os.Getenv("PWL_EMAIL_AUTH_IDENTITY"),
+				os.Getenv("PWL_EMAIL_AUTH_USERNAME"),
+				os.Getenv("PWL_EMAIL_AUTH_PASSWORD"),
+				os.Getenv("PWL_EMAIL_AUTH_HOST")),
+			emailWriter,
+		), passwordless.NewCrockfordGenerator(10), 30*time.Minute)
+	} else {
+		log.Println("No email transport specified, printing codes to stdout")
+		pw.SetTransport("debug", passwordless.LogTransport{
+			MessageFunc: func(token, uid string) string {
+				return fmt.Sprintf("Login at %s/account/token?strategy=debug&token=%s&uid=%s",
+					baseURL, token, uid)
+			},
+		}, passwordless.NewCrockfordGenerator(4), 30*time.Minute)
+	}
 
 	limiter, err := rateLimiter()
 	if err != nil {
@@ -102,8 +105,7 @@ func main() {
 	restricted.HandleFunc("/", tmplHandler("secret"))
 
 	// Listen!
-	log.Fatal(http.ListenAndServe(":8080",
-		gcontext.ClearHandler(http.DefaultServeMux)))
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 // RestrictedHandler wraps handlers and redirects the client to the specified
@@ -120,7 +122,10 @@ func RestrictedHandler(signinUrl string, h http.Handler) func(http.ResponseWrite
 				u, _ := url.Parse(signinUrl)
 				u.RawQuery = u.RawQuery + "&next=" + r.URL.String()
 				session.AddFlash("forbidden")
-				session.Save(r, w)
+				if err := session.Save(r, w); err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
 				http.Redirect(w, r, u.String(), http.StatusSeeOther)
 			} else {
 				// Logged in, fall through to original handler
