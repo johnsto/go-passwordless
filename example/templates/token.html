@@ -15,8 +15,7 @@
 		<button type="submit" class="btn btn-primary">Verify</button>
 	</form>
 	{{ if .TokenError }}<p class="red">{{ .TokenError }}</p>{{ end }}
-	{{ end }}
-	{{ if eq .Strategy "email" }}
+	{{ else if eq .Strategy "email" }}
 	<h2>Email Sent!</h2>
 	<p class="{{ if .TokenError }}muted{{end}}">An email has been sent to <strong>{{ .Recipient }}</strong> containing a unique PIN. Enter the PIN you receive into the box below:</p>
 	<form method="POST">
@@ -27,6 +26,10 @@
 		<input type="text" name="token" required class="field" autofocus>
 		<button type="submit" class="btn btn-primary">Verify</button>
 	</form>
+	{{ if .TokenError }}<p class="red">{{ .TokenError }}</p>{{ end }}
+	{{ else if eq .Strategy "debug" }}
+	<h2>Link sent!</h2>
+	<p class="{{ if .TokenError }}muted{{end}}">A protected link has been written to the terminal. Please click on it.</p>
 	{{ if .TokenError }}<p class="red">{{ .TokenError }}</p>{{ end }}
 	{{ end }}
 	</div>

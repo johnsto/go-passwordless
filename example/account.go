@@ -34,7 +34,7 @@ func signinHandler(w http.ResponseWriter, r *http.Request) {
 
 // tokenHandler has two roles. Firstly, it allows the user to input the token
 // they have received via their chosen method. Secondly, it verifies the
-// token they input, and redirects them approriately on success. On failure,
+// token they input, and redirects them appropriately on success. On failure,
 // the user is prompted to try again.
 func tokenHandler(w http.ResponseWriter, r *http.Request) {
 	session, err := getSession(w, r)
@@ -68,6 +68,8 @@ func tokenHandler(w http.ResponseWriter, r *http.Request) {
 		// but typically you'd perform a database query here.
 		uid = recipient
 	}
+
+	log.Println("strategy=", strategy, "recipient=", recipient, "uid=", uid, "token=", token)
 
 	if strategy == "" {
 		// No strategy specified in request, so send the user back to

@@ -14,21 +14,32 @@
 				<input type="hidden" name="strategy" value="sms">
 				<input type="hidden" name="next" value="{{ $next }}">
 				<label>Enter your telephone number below:</label>
-				<input name="recipient" type="tel" class="field block mb1" 
+				<input name="recipient" type="tel" class="field block mb1"
 					required placeholder="Phone number">
 				<button type="submit" class="btn btn-primary">Send</button>
 			</form>
-		{{ end }}
-		{{ if eq $name "email" }}
+		{{ else if eq $name "email" }}
 			<h3><i class="fa fa-envelope"></i> Send me an email</h3>
 			<form method="post" action="token">
 				<input type="hidden" name="strategy" value="email">
 				<input type="hidden" name="next" value="{{ $next }}">
 				<label>Enter your email address below:</label>
-				<input name="recipient" type="email" class="field block mb1" 
+				<input name="recipient" type="email" class="field block mb1"
 					required placeholder="Email address">
 				<button type="submit" class="btn btn-primary">Send</button>
 			</form>
+		{{ else if eq $name "debug" }}
+			<h3><i class="fa fa-tty"></i> Emit to debug stdout</h3>
+			<form method="post" action="token">
+				<input type="hidden" name="strategy" value="debug">
+				<input type="hidden" name="next" value="{{ $next }}">
+				<label>Enter your name below:</label>
+				<input name="recipient" type="text" class="field block mb1"
+					required placeholder="Your name">
+				<button type="submit" class="btn btn-primary">Send</button>
+			</form>
+		{{ else }}
+		<h3>Unknown strategy "{{ $name }}"</h3>
 		{{ end }}
 		</div>
 	{{ end }}
