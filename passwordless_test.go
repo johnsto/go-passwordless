@@ -5,8 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"context"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type testTransport struct {
@@ -35,6 +36,7 @@ func (g testGenerator) Sanitize(ctx context.Context, s string) (string, error) {
 }
 
 func TestPasswordless(t *testing.T) {
+	ctx := context.TODO()
 	p := New(NewMemStore())
 
 	tt := &testTransport{}
@@ -42,25 +44,25 @@ func TestPasswordless(t *testing.T) {
 	s := p.SetTransport("test", tt, tg, 5*time.Minute)
 
 	// Check transports match those set
-	assert.Equal(t, map[string]Strategy{"test": s}, p.ListStrategies(nil))
-	if s0, err := p.GetStrategy(nil, "test"); err != nil {
+	assert.Equal(t, map[string]Strategy{"test": s}, p.ListStrategies(ctx))
+	if s0, err := p.GetStrategy(ctx, "test"); err != nil {
 		assert.NoError(t, err)
 	} else {
 		assert.Equal(t, s, s0)
 	}
 
 	// Check returned token is as expected
-	assert.NoError(t, p.RequestToken(nil, "test", "uid", "recipient"))
+	assert.NoError(t, p.RequestToken(ctx, "test", "uid", "recipient"))
 	assert.Equal(t, tt.token, tg.token)
 	assert.Equal(t, tt.recipient, "recipient")
 
 	// Check invalid token is rejected
-	v, err := p.VerifyToken(nil, "uid", "badtoken")
+	v, err := p.VerifyToken(ctx, "uid", "badtoken")
 	assert.NoError(t, err)
 	assert.False(t, v)
 
 	// Verify token
-	v, err = p.VerifyToken(nil, "uid", tg.token)
+	v, err = p.VerifyToken(ctx, "uid", tg.token)
 	assert.NoError(t, err)
 	assert.True(t, v)
 }
@@ -75,30 +77,32 @@ func (s testStrategy) Valid(c context.Context) bool {
 }
 
 func TestPasswordlessFailures(t *testing.T) {
+	ctx := context.TODO()
 	p := New(NewMemStore())
 
-	_, err := p.GetStrategy(nil, "madeup")
+	_, err := p.GetStrategy(ctx, "madeup")
 	assert.Equal(t, err, ErrUnknownStrategy)
 
-	err = p.RequestToken(nil, "madeup", "", "")
+	err = p.RequestToken(ctx, "madeup", "", "")
 	assert.Equal(t, err, ErrUnknownStrategy)
 
 	p.SetStrategy("unfriendly", testStrategy{valid: false})
 
-	err = p.RequestToken(nil, "unfriendly", "", "")
+	err = p.RequestToken(ctx, "unfriendly", "", "")
 	assert.Equal(t, err, ErrNotValidForContext)
 }
 
 func TestRequestToken(t *testing.T) {
+	ctx := context.TODO()
 	// Test Generate()
-	assert.EqualError(t, RequestToken(nil, nil, &mockStrategy{
+	assert.EqualError(t, RequestToken(ctx, nil, &mockStrategy{
 		generate: func(c context.Context) (string, error) {
 			return "", fmt.Errorf("refused generate")
 		},
 	}, "", ""), "refused generate", "Generate() error should propagate")
 
 	// Test Send()
-	assert.EqualError(t, RequestToken(nil, &mockTokenStore{
+	assert.EqualError(t, RequestToken(ctx, &mockTokenStore{
 		store: func(ctx context.Context, token, uid string, ttl time.Duration) error {
 			return nil
 		},
@@ -112,7 +116,7 @@ func TestRequestToken(t *testing.T) {
 	}, "", ""), "refused send", "Send() error should propagate")
 
 	// Test Store()
-	err := RequestToken(nil, &mockTokenStore{
+	err := RequestToken(ctx, &mockTokenStore{
 		store: func(ctx context.Context, token, uid string, ttl time.Duration) error {
 			return fmt.Errorf("refused store")
 		},
@@ -128,7 +132,8 @@ func TestRequestToken(t *testing.T) {
 }
 
 func TestVerifyToken(t *testing.T) {
-	valid, err := VerifyToken(nil, &mockTokenStore{
+	ctx := context.TODO()
+	valid, err := VerifyToken(ctx, &mockTokenStore{
 		verify: func(ctx context.Context, token, uid string) (bool, error) {
 			return false, fmt.Errorf("refused verify")
 		},
@@ -136,7 +141,7 @@ func TestVerifyToken(t *testing.T) {
 	assert.False(t, valid)
 	assert.EqualError(t, err, "refused verify", "Verify() error should propagate")
 
-	valid, err = VerifyToken(nil, &mockTokenStore{
+	valid, err = VerifyToken(ctx, &mockTokenStore{
 		verify: func(ctx context.Context, token, uid string) (bool, error) {
 			return false, nil
 		},
@@ -144,7 +149,7 @@ func TestVerifyToken(t *testing.T) {
 	assert.False(t, valid)
 	assert.NoError(t, err)
 
-	valid, err = VerifyToken(nil, &mockTokenStore{
+	valid, err = VerifyToken(ctx, &mockTokenStore{
 		verify: func(ctx context.Context, token, uid string) (bool, error) {
 			return true, nil
 		},
@@ -152,6 +157,47 @@ func TestVerifyToken(t *testing.T) {
 			return fmt.Errorf("delete failure")
 		},
 	}, "", "")
+	assert.True(t, valid)
+	assert.EqualError(t, err, "delete failure")
+}
+
+func TestVerifyTokenWithOptions(t *testing.T) {
+	ctx := context.TODO()
+	valid, err := VerifyTokenWithOptions(ctx, &mockTokenStore{
+		verify: func(ctx context.Context, token, uid string) (bool, error) {
+			return false, fmt.Errorf("refused verify")
+		},
+	}, "", "")
+	assert.False(t, valid)
+	assert.EqualError(t, err, "refused verify", "Verify() error should propagate")
+
+	valid, err = VerifyTokenWithOptions(ctx, &mockTokenStore{
+		verify: func(ctx context.Context, token, uid string) (bool, error) {
+			return false, nil
+		},
+	}, "", "")
+	assert.False(t, valid)
+	assert.NoError(t, err)
+
+	valid, err = VerifyTokenWithOptions(ctx, &mockTokenStore{
+		verify: func(ctx context.Context, token, uid string) (bool, error) {
+			return true, nil
+		},
+		delete: func(ctx context.Context, uid string) error {
+			return fmt.Errorf("delete failure")
+		},
+	}, "", "")
+	assert.True(t, valid)
+	assert.NoError(t, err)
+
+	valid, err = VerifyTokenWithOptions(ctx, &mockTokenStore{
+		verify: func(ctx context.Context, token, uid string) (bool, error) {
+			return true, nil
+		},
+		delete: func(ctx context.Context, uid string) error {
+			return fmt.Errorf("delete failure")
+		},
+	}, "", "", WithValidDelete())
 	assert.True(t, valid)
 	assert.EqualError(t, err, "delete failure")
 }

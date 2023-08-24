@@ -113,9 +113,26 @@ func (p *Passwordless) RequestToken(ctx context.Context, s, uid, recipient strin
 	}
 }
 
+// PostVerifyAction is an action to take after validation has succesfully occured.
+type PostVerifyAction func(ctx context.Context, s TokenStore, uid, token string, valid bool) (bool, error)
+
+// WithValidDelete when a token is a valid, this deletes it from the store.
+func WithValidDelete() PostVerifyAction {
+	return func(ctx context.Context, s TokenStore, uid, _ string, valid bool) (bool, error) {
+		if valid {
+			return valid, s.Delete(ctx, uid)
+		}
+		return valid, nil
+	}
+}
+
 // VerifyToken verifies the provided token is valid.
 func (p *Passwordless) VerifyToken(ctx context.Context, uid, token string) (bool, error) {
 	return VerifyToken(ctx, p.Store, uid, token)
+}
+
+func (p *Passwordless) VerifyTokenWithOptions(ctx context.Context, uid, token string, actions ...PostVerifyAction) (bool, error) {
+	return VerifyTokenWithOptions(ctx, p.Store, uid, token, actions...)
 }
 
 // RequestToken generates, saves and delivers a token to the specified
@@ -136,16 +153,24 @@ func RequestToken(ctx context.Context, s TokenStore, t Strategy, uid, recipient 
 	return nil
 }
 
-// VerifyToken checks the given token against the provided token store.
+// VerifyToken checks the given token against the provided token store, on successful
+// validation it deletes the token.
 func VerifyToken(ctx context.Context, s TokenStore, uid, token string) (bool, error) {
-	if isValid, err := s.Verify(ctx, token, uid); err != nil {
+	return VerifyTokenWithOptions(ctx, s, uid, token, WithValidDelete())
+}
+
+// VerifyTokenWithOptions
+func VerifyTokenWithOptions(ctx context.Context, s TokenStore, uid, token string, actions ...PostVerifyAction) (bool, error) {
+	isValid, err := s.Verify(ctx, token, uid)
+	if err != nil {
 		// Failed to validate
 		return false, err
-	} else if !isValid {
-		// Token is not valid
-		return false, nil
-	} else {
-		// Token *is* valid; remove old token
-		return true, s.Delete(ctx, uid)
 	}
+	for _, action := range actions {
+		isValid, err = action(ctx, s, uid, token, isValid)
+		if err != nil {
+			return isValid, err
+		}
+	}
+	return isValid, nil
 }
